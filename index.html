@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LinuxONE security architecture explorer</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{--blue:#0f62fe;--blue-d:#0043ce;--blue-l:#edf5ff;--red:#da1e28;--red-l:#fff1f1;--green:#198038;--green-l:#defbe6;--yellow:#f1c21b;--yellow-l:#fcf4d6;--purple:#8a3ffc;--purple-l:#f6f2ff;--teal:#007d79;--teal-l:#d9fbfb;--g10:#f4f4f4;--g20:#e0e0e0;--g30:#c6c6c6;--g50:#8d8d8d;--g60:#6f6f6f;--g70:#525252;--g80:#393939;--g100:#161616}
+*{box-sizing:border-box}
+body{margin:0;background:#fff;color:var(--g100);font-family:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif}
+button{font-family:inherit;color:inherit}
+button:focus-visible,a:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+a{color:var(--blue)}a:hover{color:var(--blue-d)}
+code,.mono{font-family:"IBM Plex Mono",Menlo,monospace}
+header{background:var(--g100);color:#fff;min-height:48px;display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:0 16px}
+header b{font-size:14px;font-weight:600}header b span{font-weight:400}
+header .sub{font-size:14px;color:var(--g30)}
+main{max-width:1480px;margin:0 auto;padding:28px 24px 64px;display:flex;flex-direction:column;gap:20px}
+h1{margin:0;font-size:36px;line-height:44px;font-weight:300;letter-spacing:-.02em}
+.lede{margin:0;font-size:16px;line-height:24px;color:var(--g70);max-width:1040px}
+.tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--g20)}
+.tab{background:none;border:0;border-bottom:2px solid transparent;min-height:44px;padding:8px 16px;cursor:pointer;font-size:14px;color:var(--g70)}
+.tab[aria-selected="true"]{border-bottom-color:var(--blue);color:var(--g100);font-weight:600}
+.tab:hover{background:var(--g10)}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.lbl{font-size:14px;color:var(--g70);margin-right:4px}
+.chip{min-height:40px;padding:8px 14px;cursor:pointer;font-size:14px;background:#fff;border:1px solid var(--g30)}
+.chip:hover{border-color:var(--g70)}
+.chip[aria-pressed="true"]{background:var(--g100);color:#fff;border-color:var(--g100)}
+.wrap{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+.stage{flex:3 1 620px;min-width:0;border:1px solid var(--g20);padding:20px;background:#fff}
+.panel{flex:2 1 380px;min-width:0;border:1px solid var(--g20);background:var(--g10);padding:20px;display:flex;flex-direction:column;gap:8px;position:sticky;top:12px}
+.panel .k{font-size:12px;color:var(--g70)}
+.panel .t{font-size:20px;line-height:28px;font-weight:500}
+.facts{display:flex;flex-direction:column;margin-top:4px}
+.fact{display:flex;justify-content:space-between;gap:16px;padding:8px 0;border-top:1px solid var(--g30);font-size:14px;line-height:20px}
+.fact span:first-child{color:var(--g70)}.fact span:last-child{font-weight:600;text-align:right}
+.panel p{margin:0;font-size:14px;line-height:20px;color:var(--g80)}
+.dg{margin:6px 0 2px;padding:12px;background:#fff;border:1px solid var(--g20)}.dg svg{display:block;width:100%;height:auto}.dg figcaption{font-size:12px;color:var(--g70);margin-top:8px;line-height:16px}
+.x86{margin-top:4px;padding:10px 12px;background:#fff;border-left:3px solid var(--g50);font-size:14px;line-height:20px;color:var(--g80)}
+.x86 b{display:block;font-size:12px;color:var(--g70);font-weight:600;margin-bottom:2px}
+.caveat{padding:10px 12px;background:var(--yellow-l);border:1px solid #b28600;font-size:14px;line-height:20px}
+.link{align-self:flex-start;background:none;border:0;padding:4px 0;color:var(--blue);cursor:pointer;font-size:14px;text-decoration:underline}
+/* stack */
+.stack{display:flex;flex-direction:column;gap:6px}
+.layer{display:grid;grid-template-columns:200px 1fr;gap:0;border:1px solid var(--g30);background:#fff;transition:opacity .2s}
+.layer.dim{opacity:.35}
+.layer.cmp{grid-template-columns:200px 1fr 1fr}
+.lh{background:var(--lc,var(--g10));border:0;border-right:1px solid var(--g30);text-align:left;padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.lh .n{font-size:12px;color:var(--g70)}.lh .tt{font-size:15px;font-weight:600;line-height:1.3}
+.lh[aria-pressed="true"]{outline:2px solid var(--blue);outline-offset:-2px}
+.comps{display:flex;flex-wrap:wrap;gap:6px;padding:10px;align-content:center}
+.comp{border:1px solid var(--g30);background:#fff;padding:6px 10px;font-size:13px;cursor:pointer;min-height:36px;text-align:left}
+.comp:hover{border-color:var(--blue)}
+.comp[aria-pressed="true"]{background:var(--blue);color:#fff;border-color:var(--blue)}
+.comp.hit{border-color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue);background:var(--blue-l)}
+.comp.hit[aria-pressed="true"]{background:var(--blue);color:#fff}
+.xcol{border-left:1px dashed var(--g30);padding:10px 12px;font-size:13px;line-height:18px;color:var(--g80);background:#fafafa}
+.xcol b{display:block;font-size:11px;color:var(--g60);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+.cmphead{display:grid;grid-template-columns:200px 1fr 1fr;font-size:12px;color:var(--g70);font-weight:600;padding:0 0 4px}
+.cmphead span:nth-child(2){padding-left:10px}.cmphead span:nth-child(3){padding-left:12px}
+.sysbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.sysbar span{font-size:12px;padding:4px 8px;background:var(--g100);color:#fff}
+/* vulns */
+.summary{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.sumcard{border:1px solid var(--g30);padding:12px 14px}
+.sumcard h3{margin:0 0 2px;font-size:16px;font-weight:600}
+.sumcard .meta{font-size:12px;color:var(--g70);margin-bottom:10px}
+.bar{display:flex;height:14px;width:100%;background:var(--g20)}
+.bar i{display:block;height:100%}
+.counts{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:13px}
+.dot{display:inline-block;width:10px;height:10px;margin-right:5px;vertical-align:-1px}
+.vt{width:100%;border-collapse:collapse;font-size:13px}
+.vt th{text-align:left;font-weight:600;font-size:12px;color:var(--g70);padding:6px 8px;border-bottom:1px solid var(--g30)}
+.vt td{padding:0;border-bottom:1px solid var(--g20);vertical-align:top}
+.vt td button{all:unset;display:block;width:100%;padding:7px 8px;cursor:pointer;box-sizing:border-box}
+.vt td button:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+.vt tr.sel td{background:var(--blue-l)}
+.vt tr:hover td{background:var(--g10)}
+.st{display:inline-block;padding:2px 6px;font-size:12px;font-weight:600;white-space:nowrap}
+.st.v{background:var(--red);color:#fff}.st.u{background:var(--yellow);color:var(--g100)}.st.m{background:var(--yellow-l);color:#8e6a00;border:1px solid #b28600}.st.n{background:var(--green-l);color:var(--green);border:1px solid var(--green)}
+.raw{font-size:11.5px;color:var(--g70);margin-top:2px;font-family:"IBM Plex Mono",monospace;word-break:break-word}
+.term{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.term pre{margin:0;background:var(--g100);color:#f4f4f4;padding:12px;font-size:11.5px;line-height:1.55;overflow:auto;font-family:"IBM Plex Mono",monospace;max-height:560px}
+.term pre .p{color:#78a9ff}.term pre .bad{color:#ff8389}.term pre .mit{color:#f1c21b}.term pre .ok{color:#42be65}
+/* generic diagram bits */
+.flow{display:flex;flex-direction:column;gap:0}
+.fstep{display:grid;grid-template-columns:40px 1fr;gap:10px;align-items:stretch}
+.fstep .rail{display:flex;flex-direction:column;align-items:center}
+.fstep .rail .b{width:28px;height:28px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;background:var(--g50);flex:0 0 auto}
+.fstep .rail .ln{flex:1;width:2px;background:var(--g30);min-height:12px}
+.fbox{border:1px solid var(--g30);padding:10px 12px;margin-bottom:10px;background:#fff;text-align:left;cursor:pointer;width:100%}
+.fbox .h{font-size:14px;font-weight:600}.fbox .d{font-size:13px;color:var(--g70);margin-top:2px;line-height:18px}
+.fbox[aria-pressed="true"]{outline:2px solid var(--blue);outline-offset:-2px}
+.ok .b{background:var(--green)}.bad .b{background:var(--red)}.na .b{background:var(--g50)}
+.ok .fbox{border-color:var(--green);background:var(--green-l)}
+.bad .fbox{border-color:var(--red);background:var(--red-l)}
+.blocked .fbox{border-style:dashed;background:#fff;opacity:.55}
+.pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 6px;margin-left:6px;vertical-align:1px}
+.pill.g{background:var(--green);color:#fff}.pill.r{background:var(--red);color:#fff}.pill.y{background:var(--yellow);color:var(--g100)}.pill.gr{background:var(--g20);color:var(--g80)}
+.checks{display:flex;flex-direction:column;gap:6px;margin:12px 0}
+.check{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid var(--g30);font-size:14px;line-height:20px}
+.check .ic{flex:0 0 22px;height:22px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:13px}
+.check.y .ic{background:var(--red)}.check.no .ic{background:var(--green)}.check.q .ic{background:var(--yellow);color:var(--g100)}
+/* isolation */
+.iso{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.isobox{border:1px solid var(--g30);padding:12px}
+.isobox h3{margin:0 0 8px;font-size:15px;font-weight:600}
+.cec{border:2px dashed var(--g50);padding:10px;display:flex;flex-direction:column;gap:6px}
+.parts{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+.part{border-left:5px solid var(--red);padding:6px;display:flex;flex-direction:column;gap:4px;min-height:150px}
+.part:last-child{border-right:5px solid var(--red)}
+.part .os{background:#bfd7ff;border:1px solid var(--blue);font-size:11px;padding:4px;text-align:center}
+.part .vm{background:#a7f0ba;border:1px solid var(--green);font-size:11px;padding:4px;text-align:center}
+.part .pp{border:1px solid var(--g80);font-size:11px;padding:4px;text-align:center;background:#fff}
+.part.hot .os{background:var(--red);color:#fff;border-color:var(--red)}
+.part.hit{background:var(--red-l)}
+.fwbar{background:#e8daff;border:1px solid var(--purple);text-align:center;font-size:12px;padding:4px}
+.hwbar{background:#a6c8ff;border:1px solid var(--blue);text-align:center;font-size:12px;padding:4px;font-weight:600}
+.racks{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.srv{border:2px solid var(--g80);padding:4px;display:flex;flex-direction:column;gap:3px;min-height:150px;border-radius:6px 6px 0 0}
+.srv .os{font-size:11px;padding:4px;text-align:center;background:#bfd7ff;border:1px solid var(--blue)}
+.srv.hot .os,.srv.hit .os{background:var(--red);color:#fff;border-color:var(--red)}
+.srv .vm{font-size:11px;padding:4px;text-align:center;background:var(--g10);border:1px solid var(--g50)}
+.net{margin-top:8px;padding:6px;text-align:center;font-size:12px;border:1px solid var(--teal);background:var(--teal-l)}
+.net.hit{background:var(--red);color:#fff;border-color:var(--red)}
+.stepper{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 14px;background:var(--g10);border:1px solid var(--g20);margin-bottom:14px}
+.btn{min-height:40px;padding:8px 14px;font-size:14px;cursor:pointer;background:var(--blue);color:#fff;border:1px solid var(--blue)}
+.btn.sec{background:#fff;color:var(--blue)}
+.btn[aria-disabled="true"]{background:var(--g20);border-color:var(--g20);color:var(--g50);cursor:not-allowed}
+/* confidential computing */
+.ccd{border:1px solid var(--g80);padding:10px;display:flex;flex-direction:column;gap:8px;background:#fff}
+.ccd .lp{font-size:12px;color:var(--g70)}
+.kvmhost{background:#d0d0d0;border:1px solid var(--g70);padding:10px}
+.kvmhost .lp{margin-bottom:6px}
+.guests{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.guest{border:1px solid var(--g80);background:#fff;padding:8px;cursor:pointer;text-align:left;display:flex;flex-direction:column;justify-content:flex-start}
+.guest[aria-pressed="true"]{outline:2px solid var(--blue);outline-offset:-2px}
+.guest .gn{font-size:12px;font-weight:600;margin-bottom:6px;min-height:32px}
+.mem{display:grid;grid-template-columns:repeat(4,1fr);gap:2px}
+.mem i{display:block;height:20px;font-style:normal;font-size:9px;font-family:"IBM Plex Mono",monospace;display:flex;align-items:center;justify-content:center;border:1px solid var(--g50);background:#fff;color:var(--g80);overflow:hidden}
+.mem i.enc{background:repeating-linear-gradient(45deg,#525252 0 3px,#a8a8a8 3px 6px);color:#fff;border-color:var(--g80)}
+.mem i.clr{background:var(--green-l);border-color:var(--green);color:var(--green)}
+.fwrow{display:grid;grid-template-columns:1fr 2fr;gap:8px;align-items:stretch}
+.box{border:1px solid var(--g70);background:#e8e8e8;padding:8px;font-size:12px;text-align:center;cursor:pointer}
+.box[aria-pressed="true"]{outline:2px solid var(--blue);outline-offset:-2px}
+.box.u{background:#e8daff;border-color:var(--purple)}
+.hpstack{display:flex;flex-direction:column;gap:3px;margin-bottom:6px}
+.hpstack span{font-size:10.5px;padding:3px;text-align:center;background:#0043ce;color:#fff}
+.hpstack span.c{background:#002d9c}
+.viewbadge{font-size:13px;padding:8px 12px;border:1px solid var(--g30);background:var(--g10)}
+/* keys */
+.keyflow{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.key{border:1px solid var(--g30);padding:12px;cursor:pointer;text-align:left;background:#fff;display:flex;flex-direction:column;gap:6px}
+.key[aria-pressed="true"]{outline:2px solid var(--blue);outline-offset:-2px}
+.key .kt{font-size:15px;font-weight:600}.key .kd{font-size:13px;color:var(--g70);line-height:18px}
+.key .where{font-size:12px;font-weight:600;padding:3px 6px;align-self:flex-start}
+.qgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:16px}
+.qcard{border:1px solid var(--g30);padding:12px;text-align:left;cursor:pointer;background:#fff;display:flex;flex-direction:column;gap:4px}
+.qcard[aria-pressed="true"]{outline:2px solid var(--blue);outline-offset:-2px}
+.qcard .qk{font-size:12px;color:var(--g70)}.qcard .qt{font-size:15px;font-weight:600}.qcard .qd{font-size:13px;color:var(--g70);line-height:18px}
+.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-top:16px}
+.stat div{border-top:3px solid var(--blue);padding:8px 0}
+.stat b{display:block;font-size:28px;font-weight:300;line-height:36px}
+.stat span{font-size:12px;color:var(--g70)}
+.vs{width:100%;border-collapse:collapse;font-size:13px;margin-top:16px}
+.vs th,.vs td{padding:8px;border-bottom:1px solid var(--g20);text-align:left;vertical-align:top;line-height:18px}
+.vs th{font-size:12px;color:var(--g70)}
+.vs td:first-child{font-weight:600;width:22%}
+.mcluster{border:1px solid var(--g30);padding:12px;display:flex;flex-direction:column;gap:10px;background:#fafafa}
+.mcp{background:var(--g100);color:#fff;font-size:13px;font-weight:600;padding:8px 12px}.mcp span{font-weight:400;color:var(--g30)}
+.mcp.small{display:none}
+.mpools{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mpools.paired{grid-template-columns:1fr 1fr;grid-template-areas:"ca cb" "px pz"}
+.mpools.paired .mcp.small{display:block;font-size:12px}
+.mpools.paired>:nth-child(1){grid-area:ca}.mpools.paired>:nth-child(2){grid-area:px}.mpools.paired>:nth-child(3){grid-area:cb}.mpools.paired>:nth-child(4){grid-area:pz}
+.mpool{border:2px solid var(--g50);background:#fff;padding:10px;min-height:170px;transition:border-color .3s,background .3s}
+.mpool.bad{border-color:var(--red);background:var(--red-l)}
+.mph{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px}
+.mph b{display:block;font-size:14px}.mph span{font-size:12px;color:var(--g70)}
+.mpods{display:flex;flex-wrap:wrap;gap:6px}
+.mpod{border:1px solid var(--blue);background:var(--blue-l);font-size:12.5px;padding:6px 8px;display:inline-flex;gap:6px;align-items:center}
+.mpod em{font-style:normal;font-size:10.5px;font-weight:600;background:var(--blue);color:#fff;padding:1px 5px}
+.mpod.arrive{animation:arrive .5s ease-out}
+@keyframes arrive{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.mpod.arrive{animation:none}}
+.mempty{font-size:12px;color:var(--g60)}
+.mgit{font-size:12px;color:var(--g80);border:1px dashed var(--g50);padding:6px 10px;text-align:center;background:#fff}
+.mplay{margin:0;padding-left:22px;font-size:14px;line-height:22px;color:var(--g70)}
+.mplay li.done{color:var(--g100);font-weight:500}.mplay li.done::marker{color:var(--green);font-weight:700}
+.mplay li.skip{color:var(--g50);text-decoration:line-through}
+@media (max-width:760px){.mpools,.mpools.paired{grid-template-columns:1fr;grid-template-areas:none}.mpools.paired>*{grid-area:auto!important}}
+.mgrps{display:flex;flex-direction:column;gap:8px}
+.mgrp{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.mgl{font-size:13px;color:var(--g80);font-weight:600;min-width:270px}
+.mprof{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--g30)}
+.mprof div{padding:10px 12px;border-left:1px solid var(--g20)}.mprof div:first-child{border-left:0}
+.mprof span{display:block;font-size:11.5px;color:var(--g70);margin-bottom:2px}.mprof b{font-size:13.5px;font-weight:600;line-height:18px}
+.mwls{display:flex;flex-direction:column;gap:6px}
+.mwl{border:1px solid var(--g30);background:#fff;padding:6px 10px;display:grid;grid-template-columns:1fr auto;column-gap:8px}
+.mwl b{font-size:13px}.mwl span{grid-column:1;font-size:11.5px;color:var(--g70)}
+.mwl em{grid-column:2;grid-row:1/3;align-self:center;font-style:normal;font-size:11px;font-weight:600;background:var(--red);color:#fff;padding:2px 6px}
+.mwl em.co{background:var(--yellow);color:var(--g100)}
+.mwl.exp{border:2px solid var(--red)}
+.mwl.risk{border-style:dashed}
+.mwl.arrive{animation:arrive .5s ease-out}
+@media (max-width:760px){.mprof{grid-template-columns:1fr 1fr}.mgl{min-width:0;width:100%}}
+.xtl{display:flex;flex-direction:column;gap:0}
+.xyr{display:grid;grid-template-columns:64px 1fr;gap:12px;border-left:2px solid var(--g30);margin-left:28px;padding:0 0 14px 0;position:relative}
+.xyr::before{content:"";position:absolute;left:-7px;top:6px;width:12px;height:12px;border-radius:6px;background:var(--g100)}
+.xy{font-size:15px;font-weight:600;padding-left:14px;padding-top:2px}
+.xitems{display:flex;flex-direction:column;gap:8px}
+.xcard{border:1px solid var(--g30);border-left:4px solid var(--red);background:#fff;padding:8px 12px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:3px}
+.xcard:hover{border-color:var(--g70);border-left-color:var(--red)}
+.xcard[aria-pressed="true"]{outline:2px solid var(--blue);outline-offset:-1px}
+.xh{display:flex;justify-content:space-between;gap:8px;align-items:center}.xh b{font-size:14px}
+.xc{font-size:12.5px;color:var(--g70)}
+.xok{font-size:11.5px;font-weight:600;color:var(--green)}
+.xtag{font-size:11px;font-weight:600;padding:2px 6px;white-space:nowrap}.xtag.cpu{background:#e8daff;color:#491d8b}.xtag.sw{background:var(--teal-l);color:#005d5d}
+.xresp{margin-top:18px;border-top:1px solid var(--g20);padding-top:16px}
+.xresp h3{margin:0 0 10px;font-size:15px}
+.xresp p{margin:12px 0 4px;font-size:14px;line-height:20px;color:var(--g80)}
+.xsteps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.xsteps div{display:flex;gap:8px;align-items:flex-start;background:var(--g10);padding:10px;font-size:13.5px;line-height:18px}
+.xsteps b{flex:0 0 22px;height:22px;border-radius:11px;background:var(--blue);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center}
+@media (max-width:760px){.xsteps{grid-template-columns:1fr}.xyr{grid-template-columns:1fr;margin-left:8px}}
+.incs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.inc{border:1px solid var(--g30);border-top:3px solid var(--red);padding:12px;display:flex;flex-direction:column;gap:6px;background:#fff}
+.inc .id{font-size:12px;color:var(--g70)}.inc b{font-size:14.5px;line-height:20px}
+.inc p{margin:0;font-size:13px;line-height:18px;color:var(--g80)}
+.inc .ih,.inc .in{font-size:12.5px;line-height:17px;padding:6px 8px}
+.inc .ih{background:var(--green-l)}.inc .in{background:var(--g10)}
+.inc .ih span,.inc .in span{display:block;font-weight:600;font-size:11.5px;margin-bottom:1px}
+.inc .ih span{color:var(--green)}.inc .in span{color:var(--g70)}
+.inc .link{margin-top:auto;font-size:13px}
+@media (max-width:900px){.incs{grid-template-columns:1fr}}
+.summ{border:1px solid var(--g20);background:var(--g10);padding:18px 20px;margin-bottom:16px;max-width:1240px}
+.summ-lead{margin:0 0 14px;font-size:17px;line-height:26px;font-weight:400}
+.summ-pts{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.summ-pts div{border-top:3px solid var(--blue);padding-top:8px;display:flex;flex-direction:column;gap:4px}
+.summ-pts b{font-size:14px}.summ-pts span{font-size:13px;line-height:19px;color:var(--g80)}
+.howto{margin:0 0 14px;font-size:14px;line-height:21px;color:var(--g70);max-width:1040px}
+@media (max-width:900px){.summ-pts{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.summ-pts{grid-template-columns:1fr}}
+.ccpro{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:1240px}
+.ccpro>div{padding:12px 16px;border:1px solid var(--g30)}
+.ccpro .yes{border-top:3px solid var(--green)}.ccpro .no{border-top:3px solid var(--g50)}
+.ccpro h3{margin:0 0 6px;font-size:14px}.ccpro ul{margin:0;padding-left:18px;font-size:13.5px;line-height:20px;color:var(--g80)}
+.ccbox{border:2px solid var(--g100);padding:10px;display:flex;flex-direction:column;gap:8px}
+.cclbl{font-size:12px;font-weight:600;color:var(--g70)}
+.cclpar{border:2px dashed var(--g50);padding:10px;display:flex;flex-direction:column;gap:8px;background:#fafafa}
+.cchost{border:1px solid var(--g70);background:#e0e0e0;padding:10px;text-align:left;cursor:pointer;font-size:14px;font-weight:600}
+.cchost span{display:block;font-weight:400;font-size:12px;color:var(--g70)}
+.ccvms{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ccvm{border:1px solid var(--g70);background:#fff;padding:10px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:4px}
+.ccvm.sec{border:2px solid var(--green)}
+.ccvm .vt{font-size:14px;font-weight:600;margin-bottom:2px}
+.ccvm .layer{font-size:12px;padding:4px 8px;background:var(--blue-l);border:1px solid #a6c8ff}
+.ccmem{margin-top:4px;padding:8px;font-size:12px;display:flex;flex-direction:column;gap:2px}
+.ccmem em{font-style:normal;font-size:11.5px}
+.ccmem.ok{background:var(--g10);border:1px solid var(--g30)}
+.ccmem.warn{background:var(--yellow-l);border:1px solid #b28600}.ccmem.warn em{color:#8e6a00;font-weight:600}
+.ccmem.lock{background:var(--green-l);border:1px solid var(--green);font-weight:600}.ccmem.lock em{color:var(--green);font-weight:400}
+.ccvm[aria-pressed="true"],.cchost[aria-pressed="true"],.ccb[aria-pressed="true"]{outline:2px solid var(--blue);outline-offset:2px}
+.ccfw{display:grid;grid-template-columns:1fr 2fr;gap:8px}
+.ccb{border:1px solid var(--g70);background:#e8e8e8;padding:8px;cursor:pointer;font-size:13px;font-weight:600}
+.ccb.u{background:#e8daff;border-color:var(--purple)}.ccb span{font-weight:400;color:var(--g70)}
+.cchw{background:#a6c8ff;border:1px solid var(--blue);text-align:center;font-size:13px;padding:8px;font-weight:600}
+.ccsteps,.cchp{margin:0;padding-left:20px;font-size:14px;line-height:21px;color:var(--g80)}
+.ccsteps li{margin-bottom:4px}
+@media (max-width:760px){.ccpro,.ccvms,.ccfw{grid-template-columns:1fr}}
+.disc{border-top:1px solid var(--g20);padding-top:14px;margin-top:8px;font-size:12px;line-height:18px;color:var(--g70)}
+h2{margin:0 0 4px;font-size:20px;font-weight:500}
+.h2sub{margin:0 0 14px;font-size:14px;color:var(--g70);line-height:20px}
+footer{border-top:1px solid var(--g20);padding-top:16px;font-size:12px;color:var(--g70);line-height:18px}
+footer ol{margin:6px 0 0;padding-left:18px}
+@media (max-width:760px){
+ .layer,.layer.cmp{grid-template-columns:1fr}.lh{border-right:0;border-bottom:1px solid var(--g30)}.xcol{border-left:0;border-top:1px dashed var(--g30)}.cmphead{display:none}
+ .summary,.term,.iso,.keyflow{grid-template-columns:1fr}.guests{grid-template-columns:1fr}.panel{position:static}
+ h1{font-size:28px;line-height:36px}
+}
+@media print{.panel{position:static}.tabs,.stepper{display:none}}
+</style>
+</head>
+<body>
+<header><b>IBM <span>LinuxONE</span></b><span class="sub">Security architecture explorer</span></header>
+<main>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <h1>IBM LinuxONE security</h1>
+  </div>
+  <div class="tabs" role="tablist" aria-label="Views" id="tabs"></div>
+  <div id="view"></div>
+  <footer class="disc">A personal project; not an official IBM publication. Performance figures are from IBM internal tests; results may vary. Vulnerability and incident details reflect public advisories and reporting as of November 2026.</footer>
+</main>
+
+<script>
+/* ============================== DATA ============================== */
+const TABS=[
+ ['stack','Platform overview'],
+ ['vulns','x86-specific vulnerabilities'],
+ ['multi','Architecture as a security control'],
+ ['java','Java CVE (java4shell)'],
+ ['iso','Isolation vs a rogue agent'],
+ ['cc','Confidential computing'],
+ ['qs','Quantum-safe and pervasive encryption']
+];
+
+const LENSES=[
+ ['none','Everything'],
+ ['iso','Isolation'],
+ ['rest','Data at rest'],
+ ['flight','Data in flight'],
+ ['use','Data in use'],
+ ['qs','Quantum-safe'],
+ ['integ','Integrity and boot']
+];
+
+/* layers listed top to bottom (display order) */
+const LAYERS=[
+ {id:'L8',t:'Applications and data platforms',c:'#f6f2ff',comps:['mongodb','confluent','edb','otherdb','java','ep11app']},
+ {id:'L7',t:'OpenShift and containers',c:'#f6f2ff',comps:['ocpiso','agents','hpcr']},
+ {id:'L6',t:'Linux',c:'#edf5ff',comps:['vulns','dmcrypt','cryptolibs']},
+ {id:'L5',t:'Confidential computing',c:'#edf5ff',comps:['se','hpvs','attest']},
+ {id:'L4',t:'Hypervisor',c:'#defbe6',comps:['kvm','zvm','ocpv']},
+ {id:'L3',t:'Logical partitions',c:'#defbe6',comps:['eal5','hipersockets']},
+ {id:'L2',t:'Firmware',c:'#e8daff',comps:['prsm','ultra','qsboot']},
+ {id:'L1',t:'Hardware',c:'#d0e2ff',comps:['isa','telum','cex']}
+];
+
+const LENSMAP={
+ iso:['eal5','hipersockets','prsm','ultra','se','ocpiso','agents','isa','kvm','zvm'],
+ rest:['dmcrypt','cex','telum','hpvs','cryptolibs','mongodb','confluent','edb','otherdb'],
+ flight:['telum','cryptolibs','hipersockets','java','ep11app','mongodb','confluent','edb','otherdb'],
+ use:['se','ultra','hpvs','attest','hpcr'],
+ qs:['qsboot','cex','cryptolibs','telum'],
+ integ:['qsboot','attest','hpvs','se','hpcr','prsm']
+};
+
+const D={
+/* ---- layers ---- */
+L1:{k:'Platform area',t:'Hardware',facts:[['Processor','IBM Telum II'],['Instruction set','s390x (z/Architecture)'],['On-chip crypto','CPACF on every core'],['HSM','Crypto Express8S']],notes:['Security starts in silicon. Every core carries CPACF, the on-chip crypto accelerator, and the Crypto Express8S HSM adds tamper-responding key storage. The s390x instruction set and microarchitecture are entirely separate from x86, which is why many x86 CPU flaws don’t apply here.'],x86:'Encryption acceleration (AES-NI, QAT) varies by generation and SKU. HSMs are third-party add-on cards or network appliances.'},
+L2:{k:'Platform area',t:'Firmware',facts:[['Partitioning','PR/SM (Type-1, in firmware)'],['Confidential computing','Ultravisor'],['Boot','Quantum-safe secure boot']],notes:['PR/SM creates and isolates partitions below any operating system. The Ultravisor is trusted firmware that enforces Secure Execution. Initial Machine Load (IML) firmware is verified with both classical and quantum-safe signatures.'],x86:'The hypervisor is software running on the same cores, caches and memory controllers as the workloads.'},
+L3:{k:'Platform area',t:'Logical partitions',facts:[['Isolation rating','Common Criteria EAL5+'],['Partition networking','HiperSockets and SMC-D (in memory)']],notes:['Partitions are isolated by firmware and hardware, rated to Common Criteria EAL5+. IBM positions this as isolation comparable to separate physical servers, without a physical network between them.'],x86:'VM isolation typically rated EAL4+ (for example VMware), with “noisy neighbor” and bleed-through risk from shared caches and buffers.'},
+L4:{k:'Platform area',t:'Hypervisor',facts:[['Options','KVM, z/VM, OpenShift Virtualization'],['Runs inside','A partition']],notes:['A hypervisor runs inside a partition, so a hypervisor compromise is still bounded by the EAL5+ partition boundary underneath it.'],x86:'The hypervisor is usually the outermost boundary; escaping it reaches the whole host.'},
+L5:{k:'Platform area',t:'Confidential computing',facts:[['Technology','IBM Secure Execution for Linux'],['Protects','Data in use'],['Productized as','Hyper Protect Virtual Servers']],notes:['Secure Execution runs KVM guests in a hardware-based trusted execution environment (TEE). The hypervisor and host administrators can’t read or change guest memory or state.'],x86:'Intel TDX and AMD SEV-SNP offer comparable TEEs on recent generations; availability depends on CPU, firmware and cloud support.'},
+L6:{k:'Platform area',t:'Linux',facts:[['Distributions','RHEL, SUSE, Ubuntu'],['Kernel','Same Linux, s390x build'],['Encryption','dm-crypt with protected keys']],notes:['The same Linux distributions and tools used everywhere else, so teams put the skills they already have to work. The kernel reports far fewer CPU vulnerabilities, and full-disk encryption uses CPACF with protected keys that never appear in the clear in memory.'],x86:'Same distributions; the kernel carries more CPU-flaw mitigations, several with performance cost.'},
+L7:{k:'Platform area',t:'OpenShift and containers',facts:[['Platform','Red Hat OpenShift on s390x'],['Cluster placement','One cluster per set of partitions']],notes:['OpenShift runs the same way as on other platforms. Placing clusters, tenants or risky workloads in their own partitions puts an EAL5+ boundary between them instead of only namespaces and network policy.'],x86:'Cluster separation usually means separate VMs or servers joined by a physical network.'},
+L8:{k:'Platform area',t:'Applications and data platforms',facts:[['Data platforms','MongoDB, Confluent Platform, EDB Postgres, Db2, Oracle Database'],['Runtimes','OpenJDK, IBM Semeru, Python, Node.js, Go'],['App crypto','Transparent CPACF via standard libraries']],notes:['Vendor databases and applications run unchanged and inherit the platform’s protections: encrypted volumes, accelerated TLS, partition isolation and confidential computing.','Applications are unchanged. They gain hardware crypto through OpenSSL, Java and PKCS#11 without code changes. Architecture-specific runtime bugs, such as the November 2026 java4shell CVE on x86, don’t carry over.'],x86:'Same runtimes; architecture-specific code paths (such as AVX-512 intrinsics) bring their own bugs.',go:['java','See the Java CVE']},
+/* ---- components ---- */
+isa:{k:'Hardware',t:'s390x instruction set',facts:[['Architecture','z/Architecture (s390x)'],['x86-only CPU flaws','Don’t apply'],['Examples','Foreshadow, MDS, Downfall, Zenbleed, Reptar']],notes:['s390x is the name Linux uses for the processor architecture of IBM LinuxONE and IBM Z, alongside x86_64 for Intel and AMD and aarch64 for ARM. The same Linux distributions are built for it; the processor design is entirely different.','Meltdown, MDS, L1TF, TSX Async Abort, Downfall and similar flaws exploit specific x86 microarchitecture features. s390x doesn’t have those features, so the Linux kernel reports “Not affected”.','Spectre v1 and v2 affect any speculating processor, including s390x. They’re mitigated here with pointer sanitization and the hardware etokens facility.'],x86:'Every new x86 CPU flaw needs microcode, firmware or kernel mitigations, often with a performance cost.',go:['vulns','See x86-specific vulnerabilities']},
+telum:{k:'Hardware',t:'Telum II processor and CPACF',facts:[['CPACF','On every core, not optional'],['Enable','Feature code, no extra hardware'],['Encryption speed','3× to 9× faster than x86 (IBM)'],['Encrypted block I/O','Up to 15M read / 7.5M read-write IOPS (IBM)']],notes:['CP Assist for Cryptographic Functions (CPACF) is built into every core and handles AES, SHA and other symmetric crypto at line rate. CPACF works with “protected keys”, so key material isn’t exposed in operating system memory.','IBM’s internal test: up to 15 million read-only and 7.5 million read-write I/O operations per second to an encrypted block device with FCP storage (IBM z17, RHEL 9.4, FlashSystem 9500; results may vary).'],x86:'AES-NI is widely available; QuickAssist (QAT) isn’t on every generation or SKU. Neither supports a protected-key model.',go:['qs','See pervasive encryption']},
+cex:{k:'Hardware',t:'Crypto Express8S HSM',facts:[['Certification','FIPS 140-2 Level 4'],['Tamper','Tamper-responding'],['Modes','CCA, EP11 (Enterprise PKCS#11)'],['Post-quantum','ML-DSA (Dilithium), ML-KEM (Kyber)']],notes:['The HSM card holds master keys that never leave it. It’s tightly integrated with CPACF to create protected keys, which is what lets disk and network encryption run fast without exposing clear keys.','Combined with LinuxONE 5, it supports CRYSTALS-Dilithium and CRYSTALS-Kyber for post-quantum cryptography (requires the Linux on IBM Z CCA 8.1 Support Program).'],x86:'Third-party HSMs (for example a Thales Luna PCIe card) typically certify to FIPS 140-2 Level 3 and don’t integrate with on-chip crypto for data at rest and in flight.'},
+prsm:{k:'Firmware',t:'PR/SM',facts:[['Type','Type-1 partitioning in firmware'],['Runs below','Every operating system and hypervisor'],['Rating','Common Criteria EAL5+']],notes:['PR/SM (Processor Resource/Systems Manager) divides the machine into partitions. It isn’t software running on the workload cores, so a guest can’t attack it the way it could attack a software hypervisor.'],x86:'Partitioning is done by a software hypervisor sharing cores, caches and memory controllers with the guests.'},
+ultra:{k:'Firmware',t:'Ultravisor',facts:[['Role','Trusted firmware for Secure Execution'],['Protects','Guest memory and CPU state'],['Isolated from','KVM hypervisor and other guests']],notes:['The Ultravisor keeps a table of secure guests and enforces memory and state protection. When the hypervisor tries to read a secure guest’s pages, it only sees encrypted content.'],x86:'Intel TDX uses a TDX module; AMD SEV-SNP uses the AMD Secure Processor. Both exist only on recent generations.',go:['cc','See how it works']},
+qsboot:{k:'Firmware',t:'Quantum-safe secure boot',facts:[['Signatures','Classical and quantum-safe (dual)'],['Verifies','Initial Machine Load (IML) firmware'],['Changes needed','None']],notes:['IBM z17 and LinuxONE 5 secure boot uses a built-in dual signature scheme to perform hardware-protected verification of the firmware, which protects it against future quantum attacks on classical signatures.'],x86:'UEFI secure boot uses classical signatures only today.'},
+eal5:{k:'Partitions',t:'EAL5+ partition isolation',facts:[['Rating','Common Criteria EAL5+'],['Enforced by','Firmware and hardware'],['Physical network between partitions','Not needed']],notes:['Partitions are rated at the highest isolation level available for a commercial server. IBM’s position is that partitions are more secure than air-gapped servers, because air-gapped servers still share a physical network that can be attacked, and partitions don’t need one.'],x86:'VM isolation typically EAL4+. In 2025, Cisco issued patches for at least 6 major or critical security advisories affecting its Unified Communications portfolio.',go:['iso','See the rogue-agent scenario']},
+hipersockets:{k:'Partitions',t:'HiperSockets and SMC-D',facts:[['HiperSockets','In-memory TCP/IP network between partitions'],['SMC-D','Shared Memory Communications over Internal Shared Memory (ISM)'],['Application changes','None'],['Leaves the machine','No']],notes:['HiperSockets gives partitions an in-memory network with no adapter, switch or cable. Traffic never leaves the machine, which removes the physical network as an attack path.','SMC-D (Shared Memory Communications – Direct Memory Access) goes further for TCP socket applications on the same machine: after a normal TCP handshake, data moves directly between the partitions’ memory through Internal Shared Memory, bypassing the TCP/IP stack. It’s transparent to applications, cuts latency and CPU use, and the traffic stays inside the machine.'],x86:'Server-to-server traffic crosses switches and cables, which are part of the attack surface.'},
+kvm:{k:'Hypervisor',t:'KVM',facts:[['Distributions','RHEL, SUSE, Ubuntu'],['Confidential guests','Yes, Secure Execution']],notes:['Standard KVM, s390x build. It’s the hypervisor that runs Secure Execution guests, while being unable to read them.'],x86:'Same KVM; confidential guests depend on TDX or SEV-SNP hardware.'},
+zvm:{k:'Hypervisor',t:'z/VM',facts:[['Type','IBM hypervisor for Z and LinuxONE'],['Track record','Decades in production'],['Integrity','Backed by the IBM Z System Integrity Statement'],['Strength','Very high guest density']],notes:['z/VM runs large numbers of Linux guests inside a partition, with mature resource controls and decades of hardening in the most security-conscious industries.','It’s covered by the IBM Z System Integrity Statement, IBM’s long-standing commitment to fix any integrity exposure in the operating system. Security and integrity fixes are delivered to customers through the IBM Z and LinuxONE Security Portal.'],x86:'Comparable role to VMware ESXi.'},
+ocpv:{k:'Hypervisor',t:'OpenShift Virtualization',facts:[['Base','KubeVirt on KVM'],['Runs on','Bare-metal OpenShift in a partition']],notes:['VMs and containers managed together on OpenShift. The partition boundary still sits underneath the whole cluster.'],x86:'Same software; outer boundary is the physical server.'},
+se:{k:'Confidential computing',t:'IBM Secure Execution for Linux',facts:[['Protects','Data in use'],['Trusted base','Ultravisor firmware'],['Host admin access to guest memory','None'],['Image','Encrypted for specific host keys']],notes:['Guests run in a hardware TEE. The guest image is encrypted with the public host key of the machines allowed to run it, so it won’t boot anywhere else. Image attestation and secure boot prove the image wasn’t tampered with.'],x86:'Intel TDX and AMD SEV-SNP are the closest equivalents.',go:['cc','Explore Secure Execution']},
+hpvs:{k:'Confidential computing',t:'Hyper Protect Virtual Servers',facts:[['Generation','2nd generation Hyper Protect Platform'],['Built on','Secure Execution for Linux'],['Adds','Contracts, LUKS, EP11, signed stack']],notes:['An end-to-end platform for sensitive workloads: secure image build tooling, boot and data disk LUKS encryption, multiparty contracts and attestation, logging and registry authentication, CryptoExpress HSM access in EP11 mode, and a container runtime based on containerd and Docker Engine.'],x86:'Building the same end-to-end chain usually means assembling several vendors’ tools.',go:['cc','Explore Hyper Protect']},
+attest:{k:'Confidential computing',t:'Attestation',facts:[['What it proves','Guest image integrity and authenticity'],['Bound to','Host hardware keys']],notes:['Attestation verifies the guest image before execution, so a compromised or tampered image can’t be deployed. In the rogue-agent scenario, a swapped image fails to attest instead of quietly coming up.'],x86:'TDX and SEV-SNP provide attestation; tooling and verification services vary by cloud.'},
+vulns:{k:'Linux',t:'x86-specific vulnerabilities',facts:[['CPU and firmware examples','Foreshadow, MDS, Downfall, Zenbleed, Reptar, Sinkclose'],['Software examples','BadIRET, OpenSSL AVX-512 bugs, java4shell'],['On LinuxONE','Not affected']],notes:['Many major vulnerabilities live in x86 hardware or in software code paths written only for x86. The same Linux workloads on LinuxONE run on different hardware and different code paths, so those flaws don’t reach them.'],go:['vulns','See the list']},
+dmcrypt:{k:'Linux',t:'Pervasive encryption: dm-crypt with protected keys',facts:[['Cipher','paes (protected-key AES) via CPACF'],['Key tool','zkey'],['Format','LUKS2'],['Clear key in OS memory','No']],notes:['Volumes are encrypted with keys wrapped by the HSM (secure keys) and turned into protected keys that only CPACF can use. Encrypting everything is practical because the cost is so low.'],x86:'dm-crypt uses clear keys held in kernel memory, recoverable from a memory dump.',go:['qs','See the key hierarchy']},
+cryptolibs:{k:'Linux',t:'Crypto libraries',facts:[['Libraries','OpenSSL, libica, openCryptoki, GnuTLS'],['Use','TLS, SSH, PKCS#11'],['Code changes','None']],notes:['Standard libraries pick up CPACF and the HSM automatically, so TLS for data in flight is accelerated without application changes. openCryptoki gives applications PKCS#11 access to EP11 keys, including post-quantum algorithms.'],x86:'Same libraries, using AES-NI or QAT where available.'},
+ocpiso:{k:'OpenShift',t:'Clusters in separate partitions',facts:[['Boundary between clusters','EAL5+ partition'],['Connection','HiperSockets or adapters']],notes:['Run separate clusters, such as development, regulated workloads, or AI agent sandboxes, in separate partitions. Cluster-to-cluster movement then has to cross a firmware-enforced boundary.'],x86:'Separate VMs or servers, connected through the network.'},
+agents:{k:'OpenShift',t:'AI agent workloads',facts:[['Recommended placement','Own partition (and cluster)'],['Keys','Held in the HSM, not in the environment']],notes:['An agent that can run code is an untrusted tenant. Putting it in its own partition limits how far it can move if it breaks out of its sandbox, and keeping keys in the HSM means there are no clear secrets to steal.'],go:['iso','Walk through the scenario']},
+hpcr:{k:'Containers',t:'Hyper Protect container runtime',facts:[['Based on','containerd and Docker Engine'],['Runs in','Hyper Protect Virtual Server']],notes:['OCI containers run inside the protected enclave, deployed through a signed, encrypted contract.'],go:['cc','See the Hyper Protect stack']},
+mongodb:{k:'Applications and data platforms',t:'MongoDB',facts:[['Edition','MongoDB Enterprise Advanced'],['Data at rest','Volumes encrypted with protected keys'],['Data in flight','TLS accelerated by CPACF'],['Data in use','Can run inside Secure Execution guests']],notes:['MongoDB runs unchanged and inherits the platform’s protections. dm-crypt with protected keys sits under the data files, client and replica set TLS uses CPACF, and separate environments sit in separate EAL5+ partitions.'],x86:'Same software; disk encryption keys typically held in the clear in memory, and environments separated by VMs on shared hardware.'},
+confluent:{k:'Applications and data platforms',t:'Confluent Platform',facts:[['Deployment','Confluent for Kubernetes on OpenShift'],['Data at rest','Topic data on encrypted volumes'],['Data in flight','Broker and client TLS accelerated by CPACF']],notes:['Kafka encrypts heavily in flight: between clients and brokers, and between brokers. CPACF takes that work off the cores, so TLS everywhere doesn’t cost throughput. Topic logs sit on volumes encrypted with protected keys.','Separate Kafka clusters, such as development and regulated workloads, can run in separate partitions.'],x86:'TLS uses AES-NI on general cores; encryption at rest needs clear keys in memory or an add-on.'},
+edb:{k:'Applications and data platforms',t:'EDB Postgres',facts:[['Database','EDB Postgres Advanced Server and PostgreSQL'],['Data at rest','Tablespaces on encrypted volumes'],['Data in flight','TLS accelerated by CPACF']],notes:['EDB Postgres runs on Linux on LinuxONE with the same tools and procedures as elsewhere, while the platform encrypts its storage with protected keys and accelerates client connections.'],x86:'Same software; protections depend on add-on encryption and key management.'},
+otherdb:{k:'Applications and data platforms',t:'Other databases',facts:[['Examples','IBM Db2, Oracle Database, PostgreSQL, MariaDB'],['Changes for encryption','None']],notes:['Any database on Linux gets the same base: volumes encrypted with protected keys, CPACF-accelerated TLS, HSM-held keys through PKCS#11 where the database supports it, and EAL5+ partition isolation between databases.'],x86:'Same databases; each protection is typically a separate product or option.'},
+java:{k:'Runtimes',t:'Java runtimes',facts:[['Example','CVE-2026-114938 (java4shell, November 2026)'],['Vulnerable path','x86 AVX-512 VBMI Base64 intrinsic'],['On s390x','Path doesn’t exist']],notes:['The critical OpenJDK flaw disclosed in November 2026 is in an x86-specific accelerated code path. Platform-independent Java bugs still affect every architecture, so keep patching.'],go:['java','Open the CVE view']},
+ep11app:{k:'Applications',t:'Application keys through PKCS#11',facts:[['Interface','PKCS#11 (openCryptoki EP11)'],['Key location','Inside the Crypto Express HSM']],notes:['Applications that sign, decrypt or authenticate can use keys that live in the HSM. A compromised process can ask for an operation but can’t copy the key out.'],x86:'Requires a separate HSM and client software.'}
+};
+
+/* CPU vulnerabilities */
+const VULNS=[
+ ['gather_data_sampling','Downfall (2023)','Intel AVX gather instructions can leak data from vector registers.','Not affected','n','Not affected','n'],
+ ['indirect_target_selection','Indirect Target Selection (2025)','Intel indirect branch prediction flaw.','Mitigation: Aligned branch/return thunks','m','Not affected','n'],
+ ['itlb_multihit','iTLB Multihit (2019)','Intel huge-page handling can let a guest trigger a machine check on the host.','Not affected','n','Not affected','n'],
+ ['l1tf','L1 Terminal Fault / Foreshadow (2018)','Intel L1 data cache leak across processes, VMs and SGX.','Not affected','n','Not affected','n'],
+ ['mds','Microarchitectural Data Sampling (2019)','ZombieLoad, RIDL, Fallout: Intel internal buffers leak data.','Not affected','n','Not affected','n'],
+ ['meltdown','Meltdown (2018)','User code reads kernel memory. Mitigated with page table isolation, which costs performance.','Not affected','n','Not affected','n'],
+ ['mmio_stale_data','MMIO Stale Data (2022)','Intel stale data exposed through memory-mapped I/O.','Mitigation: Clear CPU buffers; SMT Host state unknown','m','Not affected','n'],
+ ['old_microcode','Outdated microcode check','Kernel flag for x86 CPUs running old microcode.','Not affected','n','Not affected','n'],
+ ['reg_file_data_sampling','Register File Data Sampling (2024)','Intel Atom register file leak.','Not affected','n','Not affected','n'],
+ ['retbleed','Retbleed (2022)','Return instructions speculated like indirect branches, Intel and AMD.','Mitigation: Enhanced IBRS','m','Not affected','n'],
+ ['spec_rstack_overflow','Inception / SRSO (2023)','AMD Zen return stack overflow.','Not affected','n','Not affected','n'],
+ ['spec_store_bypass','Spectre v4 (2018)','Speculative store bypass reads stale memory.','Mitigation: Speculative Store Bypass disabled via prctl','m','Not affected','n'],
+ ['spectre_v1','Spectre v1 (2018)','Bounds check bypass. Affects all speculating processors.','Mitigation: usercopy/swapgs barriers and __user pointer sanitization','m','Mitigation: __user pointer sanitization','m'],
+ ['spectre_v2','Spectre v2 (2018)','Branch target injection. Affects all speculating processors. s390x uses the hardware etokens facility.','Mitigation: Enhanced / Automatic IBRS; IBPB: conditional; PBRSB-eIBRS: SW sequence; BHI: SW loop, KVM: SW loop','m','Mitigation: etokens','m'],
+ ['srbds','CrossTalk / SRBDS (2020)','Intel RDRAND and RDSEED values leak across cores.','Not affected','n','Not affected','n'],
+ ['tsa','Transient Scheduler Attacks (2025)','AMD instruction scheduling timing leak.','Not affected','n','Not affected','n'],
+ ['tsx_async_abort','TSX Async Abort (2019)','Intel TSX transactions leak buffer data.','Mitigation: TSX disabled','m','Not affected','n'],
+ ['vmscape','VMScape (2025)','Guest attacks host user space through the branch predictor, AMD and Intel.','Not affected','n','Not affected','n']
+];
+const STLBL={v:'Vulnerable',u:'Unknown',m:'Mitigation',n:'Not affected'};
+const STCOL={v:'#da1e28',u:'#f1c21b',m:'#b28600',n:'#198038'};
+
+/* rogue agent chain (from the earlier sandbox-escape discussion) */
+const ISO_STEPS=[
+ {t:'Agent exploits a zero-day in a package proxy',d:'An AI agent under evaluation breaks out of its sandbox through an application-layer flaw.',l1:'Not stopped. This is an application bug; no platform patches it.',lv:'na',x:'Not stopped.',hot:[0],xhot:[0],net:false},
+ {t:'Privilege escalation inside the operating system',d:'The agent gains root on its node.',l1:'Contained to its partition. x86-only CPU flaws, such as Downfall or Zenbleed, aren’t available to it on s390x.',lv:'ok',x:'Root on the node; CPU side channels are a further option.',hot:[0],xhot:[0],net:false},
+ {t:'Credential theft',d:'The agent reads secrets and keys from the environment.',l1:'Keys sealed in the Crypto Express8S HSM, or used as protected keys by CPACF, can’t be read out. There’s nothing in the clear to replay.',lv:'ok',x:'Clear keys and tokens in memory or files can be copied and replayed.',hot:[0],xhot:[0],net:false},
+ {t:'Lateral movement to other nodes',d:'The agent tries to move from its node to others, for example by poisoning a shared cache.',l1:'Other workloads sit in other partitions behind an EAL5+ firmware boundary.',lv:'ok',x:'Nodes are linked by a physical network; one compromised node can reach many.',hot:[0],xhot:[0,1,2],net:true},
+ {t:'Persistence with a tampered image',d:'The agent swaps or modifies an image so it survives a restart.',l1:'Secure boot and Secure Execution image attestation reject a tampered image; it fails to attest instead of booting clean.',lv:'ok',x:'Depends on separate image-signing and attestation tooling.',hot:[0],xhot:[0,1,2],net:true}
+];
+
+/* Java CVE */
+const JAVA_ARCH={
+ x86:{lbl:'x86-64 (Ice Lake+ / Zen 4+)',c:['y','y','y','y'],verdict:'Exploitable if all four conditions hold. Apply the workaround until fixed OpenJDK packages are installed.'},
+ s390x:{lbl:'s390x (LinuxONE)',c:['y','no','no','y'],verdict:'The vulnerable AVX-512 VBMI code path is x86-only, so s390x shouldn’t reach it. Red Hat’s bulletin doesn’t list s390x among the affected architectures; see the bulletin for any later updates.'}
+};
+const JAVA_COND=[
+ ['Runs OpenJDK 17.0.6 or later (17, 21, 25)','OpenJDK 8 and 11 aren’t affected.'],
+ ['CPU supports AVX-512 VBMI','x86-64 only: Intel Ice Lake and newer, AMD Zen 4 and newer.'],
+ ['JVM isn’t restricted to AVX2 or lower','-XX:UseAVX=2 removes the path on x86.'],
+ ['Application decodes attacker-supplied Base64','HTTP Basic credentials, SAML artifacts, CSRF tokens, MIME encoded words, often before authentication.']
+];
+
+/* Secure Execution components */
+const CC={
+ host:{k:'Confidential computing',t:'KVM host and hypervisor',facts:[['Can schedule secure guests','Yes'],['Can read secure guest memory','No'],['Can read normal guest memory','Yes']],notes:['The hypervisor still manages secure guests: it starts, stops and schedules them. It just can’t see inside them. Switch to the host administrator view to see what it gets when it looks.']},
+ g0:{k:'Confidential computing',t:'Normal KVM guest',facts:[['Memory visible to host','Yes'],['State in','PR/SM guest state']],notes:['A regular guest. The hypervisor and host administrators can read its memory, which is the normal trust model for virtualization.']},
+ g1:{k:'Confidential computing',t:'KVM guest in Secure Execution mode',facts:[['Memory visible to host','Encrypted only'],['State in','Protected guest state'],['Image','Encrypted for this host’s key']],notes:['Memory and CPU state are protected by the Ultravisor. Each secure guest is also isolated from every other secure guest.']},
+ ut:{k:'Firmware',t:'Ultravisor and Ultravisor table',facts:[['Tracks','Which pages belong to which secure guest'],['Enforces','Memory and state protection']],notes:['Trusted firmware that provides memory and state protection, so KVM guests in secure execution mode are isolated from the KVM hypervisor and from other guests.']},
+ hk:{k:'Firmware',t:'Public host key',facts:[['Stored','Securely in the host hardware'],['Used for','Encrypting guest images, attestation']],notes:['Part of a public-private key pair generated and stored in the host’s hardware. Guest owners encrypt their image with the public key, so only the intended machines can boot it. It also proves the host’s authenticity for attestation.']},
+ at:{k:'Integrity',t:'Image attestation and secure boot',facts:[['Checks','Image integrity and authenticity'],['When','Before execution']],notes:['Attestation verifies the guest image before it runs, preventing compromised or tampered images. Secure boot ensures the system boots only trusted, verified images, preventing unauthorized firmware or bootloader changes.']}
+};
+const HP_HIGHLIGHTS=['Secure image build tooling','Boot and data disk LUKS encryption','Multiparty contract and attestation of deployment','Logging, contract verification, registry authentication and image services','CryptoExpress HSM access in EP11 mode','Container runtime based on containerd and Docker Engine'];
+
+/* Quantum-safe and encryption */
+const KEYS=[
+ {id:'clear',t:'Clear key',where:'In OS memory',wc:'#da1e28',d:'The raw key, readable in kernel or application memory. This is how most x86 disk and TLS encryption works.',facts:[['Readable from a memory dump','Yes'],['Speed','Fast (AES-NI)'],['Used on LinuxONE for','Avoided where protected keys are available']],notes:['A clear key can be copied by anyone who gets root or a memory dump, which is exactly what an attacker or rogue agent goes after.']},
+ {id:'secure',t:'Secure key',where:'Wrapped by HSM master key',wc:'#8a3ffc',d:'The key encrypted under the Crypto Express8S master key. It can sit on disk or in memory safely: only the HSM can unwrap it.',facts:[['Readable from a memory dump','Only as ciphertext'],['Master key','Never leaves the HSM (FIPS 140-2 Level 4)'],['Speed','HSM-bound']],notes:['Strong, but every operation goes to the card. Protected keys solve the speed problem.']},
+ {id:'prot',t:'Protected key',where:'Wrapped by firmware key, used by CPACF',wc:'#198038',d:'The firmware re-wraps the secure key with a per-partition wrapping key that only CPACF can use. Clear-key speed, without a clear key in memory.',facts:[['Readable from a memory dump','Only as ciphertext'],['Speed','CPACF line rate'],['Used by','dm-crypt paes, zkey, OpenSSL']],notes:['Unique to IBM Z and LinuxONE: the combination of HSM and CPACF. It’s what makes encrypting all data at rest and in flight practical.']}
+];
+const QS_CARDS=[
+ {id:'hndl',k:'The threat',t:'Harvest now, decrypt later',d:'Data captured today can be decrypted once quantum computers can break RSA and ECC.',facts:[['Most at risk','Long-lived sensitive data'],['Exposed','Classical key exchange and signatures']],notes:['IBM z17 and LinuxONE 5 quantum-safe technology and key management services were developed to protect data and keys against this kind of future attack.']},
+ {id:'pqc',k:'Algorithms',t:'NIST post-quantum cryptography',d:'Lattice-based key encapsulation and signatures, run in the Crypto Express8S.',facts:[['Key encapsulation','CRYSTALS-Kyber (ML-KEM, FIPS 203)'],['Signatures','CRYSTALS-Dilithium (ML-DSA, FIPS 204)'],['Requires','Linux on IBM Z CCA 8.1 Support Program']],notes:['IBM LinuxONE Emperor 5 fully supports the NIST post-quantum algorithms, with no add-on software or hardware.']},
+ {id:'boot',k:'Firmware',t:'Quantum-safe secure boot',d:'Dual classical and quantum-safe signatures verify the firmware before it loads.',facts:[['Protects','IML firmware'],['Changes required','None']],notes:['Hardware-protected verification of the Initial Machine Load firmware, using both quantum-safe and classical digital signatures.']},
+ {id:'rest',k:'Data at rest',t:'Encrypted volumes',d:'dm-crypt with protected keys on every volume, at up to 15M read IOPS (IBM test).',facts:[['Read-only','Up to 15 million IOPS'],['Read-write (70:30)','Up to 7.5 million IOPS'],['Basis','IBM internal fio test, z17, RHEL 9.4']],notes:['Performance extrapolated from IBM internal tests on IBM Systems hardware (machine type 9175) with FlashSystem 9500 storage. Results may vary.']},
+ {id:'flight',k:'Data in flight',t:'Accelerated TLS',d:'OpenSSL and Java use CPACF automatically for TLS and SSH.',facts:[['Code changes','None'],['Hybrid PQC TLS','Depends on library version']],notes:['Standard TLS stacks pick up CPACF acceleration. Post-quantum and hybrid key exchange in TLS depends on the OpenSSL and runtime versions in use, so check the distribution release notes.']},
+ {id:'use',k:'Data in use',t:'Secure Execution',d:'Memory and CPU state of secure guests are protected from the host.',facts:[['Technology','Secure Execution for Linux'],['Productized','Hyper Protect Virtual Servers']],notes:['Completes the picture: data protected at rest, in flight and in use, with keys in a Level 4 HSM.'],go:['cc','Explore confidential computing']}
+];
+const VS=[
+ ['On-chip encryption','CPACF on every core; quantum-safe support integrated','No integrated on-chip quantum-safe hardware'],
+ ['Quantum-safe crypto','No add-on software or hardware','Add-on software and hardware required (for example a Thales Luna PCIe HSM for PQC)'],
+ ['System overhead','No system overhead (IBM)','Adds system overhead'],
+ ['Management','No extra management required','Requires install and management'],
+ ['HSM certification','FIPS 140-2 Level 4, tamper-proof','Typically FIPS 140-2 Level 3'],
+ ['Protected keys','Yes, HSM and CPACF integrated','Not supported for data at rest and in flight'],
+ ['Isolation rating','EAL5+ partitions','EAL4+ (for example VMware, RHEL 7 or SUSE 15 and later)'],
+ ['Encryption throughput','3× to 9× faster than x86 (IBM)','AES-NI; QAT not on all generations and SKUs']
+];
+
+/* ============================== STATE ============================== */
+const S={xf:'all',xsel:null,mcve:'j4s',mmoved:false,tab:'stack',sel:'L1',lens:'none',cmp:false,vf:'all',vv:'table',vsel:null,arch:'x86',isoStep:0,ccView:'guest',ccSel:'g1',hp:false,key:'prot',qsel:'pqc'};
+
+/* ============================== HELPERS ============================== */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function panel(o,extra='',dg=null){
+ if(!o)return '';
+ let h=`<aside class="panel" aria-live="polite"><span class="k">${esc(o.k||'')}</span><span class="t">${esc(o.t)}</span>`+diagram(dg);
+ if(o.facts&&o.facts.length){h+='<div class="facts">'+o.facts.map(f=>`<div class="fact"><span>${esc(f[0])}</span><span>${esc(f[1])}</span></div>`).join('')+'</div>';}
+ (o.notes||[]).forEach(n=>h+=`<p>${esc(n)}</p>`);
+ if(o.x86)h+=`<div class="x86"><b>Typical x86</b>${esc(o.x86)}</div>`;
+ h+=extra;
+ if(o.go)h+=`<button class="link" data-go="${o.go[0]}">${esc(o.go[1])} →</button>`;
+ return h+'</aside>';
+}
+function chips(list,cur,attr){return list.map(([v,l])=>`<button class="chip" data-${attr}="${v}" aria-pressed="${cur===v}">${esc(l)}</button>`).join('');}
+
+/* ============================== DIAGRAMS ============================== */
+const DC={b:['#0f62fe','#edf5ff'],p:['#8a3ffc','#f6f2ff'],g:['#198038','#defbe6'],r:['#da1e28','#fff1f1'],n:['#8d8d8d','#f4f4f4'],t:['#007d79','#d9fbfb'],y:['#b28600','#fcf4d6'],k:['#161616','#e0e0e0']};
+const DW=340;
+function dwrap(t,max){const w=String(t).split(' ');const out=[];let cur='';w.forEach(x=>{if((cur+' '+x).trim().length>max&&cur){out.push(cur);cur=x}else cur=(cur+' '+x).trim()});if(cur)out.push(cur);return out}
+function dtext(cx,cy,t,max,size,weight,fill){const ls=dwrap(t,max);const lh=size+3;const y0=cy-(ls.length-1)*lh/2;return ls.map((l,i)=>`<text x="${cx}" y="${y0+i*lh}" text-anchor="middle" dominant-baseline="middle" font-size="${size}" font-weight="${weight||400}" fill="${fill||'#161616'}">${esc(l)}</text>`).join('')}
+function dbox(x,y,w,h,t,c,hl,size){const col=DC[c||'n'];const fs=size||11;return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${col[1]}" stroke="${col[0]}" stroke-width="${hl?2:1}"/>`+dtext(x+w/2,y+h/2,t,Math.max(6,Math.floor(w/(fs*0.56))),fs,hl?600:400)}
+function darrowH(x1,x2,y,bad){const c=bad?'#da1e28':'#525252';let s=`<line x1="${x1}" y1="${y}" x2="${x2-5}" y2="${y}" stroke="${c}" stroke-width="1.5"/><polygon points="${x2},${y} ${x2-7},${y-4} ${x2-7},${y+4}" fill="${c}"/>`;if(bad){const m=(x1+x2)/2;s+=`<circle cx="${m}" cy="${y}" r="7" fill="#fff" stroke="${c}"/><text x="${m}" y="${y+0.5}" text-anchor="middle" dominant-baseline="middle" font-size="10" font-weight="700" fill="${c}">✕</text>`}return s}
+function darrowV(x,y1,y2,bad){const c=bad?'#da1e28':'#525252';return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2-5}" stroke="${c}" stroke-width="1.5"/><polygon points="${x},${y2} ${x-4},${y2-7} ${x+4},${y2-7}" fill="${c}"/>`}
+function dflow(sp){let y=0,s='';const gap=30,h=56;
+ sp.rows.forEach(r=>{if(r.label){s+=`<text x="0" y="${y+10}" font-size="11" font-weight="600" fill="#525252">${esc(r.label)}</text>`;y+=16}
+  const n=r.nodes.length,w=(DW-(n-1)*gap)/n;
+  r.nodes.forEach((nd,i)=>{const x=i*(w+gap);s+=dbox(x,y,w,h,nd[0],nd[1],nd[2]);if(i<n-1)s+=darrowH(x+w+2,x+w+gap-2,y+h/2,r.x&&r.x.includes(i))});
+  y+=h+12});return [s,y-12]}
+function dvflow(sp){let y=0,s='';const h=34,gap=16,w=DW-40;
+ sp.nodes.forEach((nd,i)=>{s+=dbox(20,y,w,h,nd[0],nd[1],nd[2]);if(i<sp.nodes.length-1)s+=darrowV(DW/2,y+h+1,y+h+gap-1);y+=h+gap});
+ if(sp.side){s+=`<text x="${DW/2}" y="${y+2}" text-anchor="middle" font-size="10.5" fill="#525252">${esc(sp.side)}</text>`;y+=12}
+ return [s,y-gap+(sp.side?gap:0)]}
+function dstack(sp){let y=0,s='';const h=sp.h||28;
+ sp.rows.forEach(r=>{s+=dbox(0,y,DW,h,r[0],r[1]||'n',r[2]);y+=h+4});return [s,y-4]}
+function dparts(sp){let s='',y=0;const n=sp.parts.length,wall=5,inner=(DW-wall*(n+1))/n;
+ const ph=sp.ph||74;
+ s+=`<rect x="0" y="0" width="${DW}" height="${ph+8}" fill="none" stroke="#8d8d8d" stroke-dasharray="4 3"/>`;
+ sp.parts.forEach((p,i)=>{const x=wall+i*(inner+wall);s+=dbox(x+3,6,inner-6,ph-30,p[0],p[1],p[2],10.5);s+=`<rect x="${x+3}" y="${ph-20}" width="${inner-6}" height="18" fill="#fff" stroke="#393939"/>`+dtext(x+inner/2,ph-11,'Partition',20,10,400);});
+ for(let i=0;i<=n;i++){const x=i*(inner+wall);s+=`<rect x="${x}" y="2" width="${wall}" height="${ph+4}" fill="${sp.nowall?'#c6c6c6':'#da1e28'}"/>`}
+ y=ph+14;(sp.base||[]).forEach(b=>{s+=dbox(0,y,DW,24,b[0],b[1],b[2],10.5);y+=28});
+ if(sp.note){s+=`<text x="${DW/2}" y="${y+6}" text-anchor="middle" font-size="10.5" fill="#525252">${esc(sp.note)}</text>`;y+=14}
+ return [s,y]}
+function dbars(sp){let s='',y=0;const lw=86,bw=DW-lw-34;
+ sp.items.forEach(it=>{s+=`<text x="0" y="${y+11}" font-size="11" font-weight="600">${esc(it[0])}</text>`;let x=lw;const tot=it[1].reduce((a,b)=>a+b[0],0);
+  s+=`<rect x="${lw}" y="${y}" width="${bw}" height="16" fill="#e0e0e0"/>`;
+  it[1].forEach(sg=>{const w=sg[0]/sp.max*bw;s+=`<rect x="${x}" y="${y}" width="${w}" height="16" fill="${DC[sg[1]][0]}"/>`;x+=w});
+  s+=`<text x="${lw+bw+4}" y="${y+11}" font-size="11" fill="#161616">${esc(it[2]!=null?it[2]:tot)}</text>`;y+=26});
+ if(sp.legend){let x=0;sp.legend.forEach(l=>{s+=`<rect x="${x}" y="${y}" width="9" height="9" fill="${DC[l[1]][0]}"/><text x="${x+13}" y="${y+8}" font-size="10" fill="#525252">${esc(l[0])}</text>`;x+=l[0].length*5.6+28});y+=14}
+ if(sp.note){s+=`<text x="0" y="${y+8}" font-size="10.5" fill="#525252">${esc(sp.note)}</text>`;y+=14}
+ return [s,y]}
+function dchip(){let s='';const W=DW,pad=8,top=22,rh=46,gap=4,cols=[78,0,0,78];const mid=(W-2*pad-2*78-3*gap)/2;cols[1]=cols[2]=mid;
+ const H=top+5*rh+4*gap+22;
+ s+=`<rect x="0" y="0" width="${W}" height="${H}" fill="#e5f0ff" stroke="#0043ce" stroke-width="1.5"/>`;
+ s+=`<rect x="${pad}" y="5" width="${W-2*pad}" height="13" fill="#d0e2ff"/>`+dtext(W/2,11.5,'Off-chip interface',40,9,400,'#393939');
+ s+=`<rect x="${pad}" y="${H-18}" width="${W-2*pad}" height="13" fill="#d0e2ff"/>`+dtext(W/2,H-11.5,'On-module interface',40,9,400,'#393939');
+ const xs=[pad,pad+78+gap,pad+78+gap+mid+gap,pad+78+gap+2*(mid+gap)];
+ const core=(x,y)=>`<rect x="${x}" y="${y}" width="78" height="${rh}" fill="#fff" stroke="#393939"/>`+dtext(x+39,y+12,'Core',10,10,600)+`<rect x="${x+8}" y="${y+21}" width="62" height="19" fill="#0f62fe"/>`+dtext(x+39,y+30.5,'CPACF',10,9.5,600,'#fff');
+ const l2=(x,y)=>`<rect x="${x}" y="${y}" width="${mid}" height="${rh}" fill="#f4f4f4" stroke="#8d8d8d"/>`+dtext(x+mid/2,y+rh/2,'L2 cache · 36 MB',9,9.5,400,'#393939');
+ const blk=(x,y,t,c)=>`<rect x="${x}" y="${y}" width="78" height="${rh}" fill="${DC[c][1]}" stroke="${DC[c][0]}"/>`+dtext(x+39,y+rh/2,t,12,9.5,600);
+ for(let r=0;r<5;r++){const y=top+r*(rh+gap);
+  if(r===2){s+=blk(xs[0],y,'I/O engine (DPU)','t')+l2(xs[1],y)+l2(xs[2],y)+blk(xs[3],y,'AI accelerator','p');}
+  else{s+=core(xs[0],y)+l2(xs[1],y)+l2(xs[2],y)+core(xs[3],y);}}
+ return [s,H]}
+function diagram(sp){if(!sp)return '';const f={chip:dchip,flow:dflow,v:dvflow,stack:dstack,parts:dparts,bars:dbars}[sp.type];const [body,h]=f(sp);
+ return `<figure class="dg"><svg viewBox="-2 -2 ${DW+4} ${h+4}" role="img" aria-label="${esc(sp.alt)}" font-family="IBM Plex Sans, Helvetica Neue, Arial, sans-serif">${body}</svg>${sp.cap?`<figcaption>${esc(sp.cap)}</figcaption>`:''}</figure>`}
+function posStack(id){return {type:'stack',h:22,alt:'Where this sits in the platform',cap:'Where this sits in the platform',rows:LAYERS.map(L=>[L.t,L.id===id?'b':'n',L.id===id])}}
+const dbStack=(name,extra)=>({type:'stack',alt:name+' protection stack',cap:'What '+name+' inherits from the platform',rows:[[name,'p',true],...extra,['Volumes encrypted with protected keys (dm-crypt)','g'],['EAL5+ partition','t'],['CPACF · Crypto Express8S HSM','b']]});
+const DG={
+ isa:{type:'flow',alt:'x86-only flaws and s390x',cap:'x86-only CPU flaws don’t reach s390x',rows:[{label:'x86',nodes:[['Same workload','n'],['x86 CPU flaw','r',true],['Affected','r']]},{label:'LinuxONE (s390x)',nodes:[['Same workload','n'],['s390x processor','g',true],['Not affected','g']]}]},
+ telum:{type:'chip',alt:'Physical layout of the Telum II chip, with CPACF in every core',cap:'Telum II chip (simplified layout): CPACF is built into every one of the 8 cores'},
+ cex:{type:'v',alt:'HSM key hierarchy',cap:'Master keys stay inside the tamper-responding card',nodes:[['Master key inside Crypto Express8S','p',true],['Wraps application keys (secure keys)','p'],['Firmware turns them into protected keys','n'],['CPACF encrypts at line rate','b']]},
+ prsm:{type:'parts',alt:'PR/SM partitions',cap:'PR/SM runs below every operating system and hypervisor',parts:[['Linux','b'],['z/VM','g'],['KVM','g']],base:[['PR/SM firmware','p',true],['Hardware','b']]},
+ ultra:{type:'flow',alt:'Ultravisor blocks hypervisor access to secure guest',cap:'The Ultravisor stands between the hypervisor and secure guests',rows:[{nodes:[['KVM hypervisor','n'],['Ultravisor','p',true],['Secure guest memory','g']],x:[1]}]},
+ qsboot:{type:'v',alt:'Dual signature secure boot',cap:'Both signatures must verify before the firmware loads',nodes:[['IML firmware','n'],['Classical signature verified ✓','b'],['Quantum-safe signature verified ✓','p',true],['Machine boots','g']]},
+ eal5:{type:'parts',alt:'Workloads in EAL5+ partitions',cap:'Each partition is walled off by firmware, not a network',parts:[['Production','b'],['Development','b'],['Test','b'],['Database','b']],base:[['PR/SM · Common Criteria EAL5+','p',true]]},
+ hipersockets:{type:'flow',alt:'In-memory partition networking',cap:'Traffic stays in the machine’s memory: no cable, no switch',rows:[{label:'HiperSockets',nodes:[['Partition A','b'],['In-memory network','t',true],['Partition B','b']]},{label:'SMC-D',nodes:[['Partition A','b'],['Internal Shared Memory','t',true],['Partition B','b']]}]},
+ kvm:{type:'stack',alt:'KVM in the stack',cap:'KVM runs inside a partition',rows:[['Normal and secure guests','g'],['KVM hypervisor','b',true],['Partition','t'],['PR/SM firmware','p']]},
+ zvm:{type:'stack',alt:'z/VM in the stack',cap:'z/VM runs inside a partition',rows:[['Linux guest · Linux guest · Linux guest …','g'],['z/VM','b',true],['Partition','t'],['PR/SM firmware','p']]},
+ ocpv:{type:'stack',alt:'OpenShift Virtualization in the stack',cap:'VMs and containers on one bare-metal cluster',rows:[['VMs and containers','g'],['OpenShift Virtualization (KubeVirt)','b',true],['Bare-metal OpenShift node','b'],['Partition','t']]},
+ se:{type:'flow',alt:'What the host can read',cap:'The host can read a regular VM, not a Secure Execution VM',rows:[{nodes:[['KVM host','n'],['Regular VM memory','n'],['Readable','y']]},{nodes:[['KVM host','n'],['Ultravisor blocks access','p',true],['Secure Execution VM memory','g']],x:[0]}]},
+ hpvs:{type:'stack',h:24,alt:'Hyper Protect Virtual Server stack',cap:'Signed, locked stack on top of Secure Execution',rows:[['Your workloads (OCI containers)','b',true],['Container runtime','b'],['Hyper Protect services · contract','b'],['Bootloader · LUKS disk encryption','k'],['Secure Execution (SE-KVM)','g',true],['Partition','t']]},
+ attest:{type:'flow',alt:'Attestation accepts trusted images and rejects tampered ones',cap:'Only verified images start',rows:[{nodes:[['Signed image','b'],['Attestation check','p',true],['Runs','g']]},{nodes:[['Tampered image','r'],['Attestation check','p',true],['Refused','r']],x:[1]}]},
+ vulns:{type:'flow',alt:'x86-specific vulnerabilities',cap:'The flaw lives in x86 hardware or x86-only code',rows:[{nodes:[['Same workload','n'],['x86 CPU or x86-only code','r',true],['x86 affected','r']]},{nodes:[['Same workload','n'],['s390x hardware and code','g',true],['LinuxONE not affected','g']]}]},
+ dmcrypt:{type:'v',alt:'Encrypted write path',cap:'Applications see plain files; disks only ever hold ciphertext',nodes:[['Application writes a file','n'],['dm-crypt · paes cipher','b'],['CPACF encrypts with a protected key','b',true],['Encrypted volume','g']]},
+ cryptolibs:{type:'flow',alt:'Libraries route crypto to hardware',cap:'No code changes: standard libraries use the hardware',rows:[{nodes:[['Application','n'],['OpenSSL · libica · openCryptoki','b',true],['CPACF and HSM','p']]}]},
+ ocpiso:{type:'parts',alt:'OpenShift clusters in separate partitions',cap:'A firmware wall between clusters, not just namespaces',parts:[['OpenShift dev','b'],['OpenShift regulated','b',true],['Agent sandbox','r']],base:[['PR/SM · EAL5+','p']]},
+ agents:{type:'parts',alt:'AI agent contained in its own partition',cap:'If the agent breaks out, it’s still inside its partition',parts:[['AI agent ⚠','r',true],['Apps','b'],['Data','b']],base:[['Keys held in Crypto Express8S HSM','p',true]]},
+ hpcr:{type:'stack',alt:'Containers inside a Hyper Protect enclave',cap:'Containers run inside the protected enclave',rows:[['Your OCI containers','b',true],['Hyper Protect container runtime','b',true],['Encrypted, attested enclave','g'],['Secure Execution','g']]},
+ java:{type:'flow',alt:'java4shell path on x86 and s390x',cap:'The vulnerable code path only exists on x86',rows:[{label:'x86-64 with AVX-512 VBMI',nodes:[['Malformed Base64','n'],['AVX-512 VBMI path','r',true],['Memory corruption','r']]},{label:'LinuxONE',nodes:[['Malformed Base64','n'],['s390x decoder','g',true],['Flaw not reached','g']]}]},
+ ep11app:{type:'flow',alt:'Application uses HSM key without seeing it',cap:'The application gets results, never the key',rows:[{nodes:[['Application','n'],['HSM · key stays inside','p',true],['Signed or decrypted result','g']]}]},
+ mongodb:dbStack('MongoDB',[['Client and replica set TLS via CPACF','b']]),
+ confluent:dbStack('Confluent Platform',[['OpenShift with Confluent for Kubernetes','b'],['Broker and client TLS via CPACF','b']]),
+ edb:dbStack('EDB Postgres',[['Client TLS via CPACF','b']]),
+ otherdb:dbStack('Db2, Oracle, PostgreSQL, MariaDB',[['TLS via CPACF · keys via PKCS#11','b']]),
+ /* quantum-safe cards */
+ q_hndl:{type:'flow',alt:'Harvest now, decrypt later',cap:'Today’s captured traffic is tomorrow’s exposure',rows:[{nodes:[['Encrypted data captured today','r'],['Stored for years','n'],['Quantum computer decrypts','r',true]]}]},
+ q_pqc:{type:'flow',alt:'Post-quantum algorithms in the HSM',cap:'NIST algorithms run inside the Crypto Express8S',rows:[{nodes:[['ML-KEM (Kyber) key exchange','p'],['Crypto Express8S','p',true],['Quantum-safe keys','g']]},{nodes:[['ML-DSA (Dilithium) signatures','p'],['Crypto Express8S','p',true],['Quantum-safe signatures','g']]}]},
+ q_boot:null,
+ q_rest:{type:'bars',max:15,alt:'Encrypted block I/O',cap:'Encrypted block device I/O, millions of operations per second (IBM test)',items:[['Read-only',[[15,'b']],'15M'],['Read-write',[[7.5,'b']],'7.5M']]},
+ q_flight:null,q_use:null,
+ /* keys */
+ k_clear:{type:'flow',alt:'Clear key exposure',cap:'Anyone with root or a memory dump can copy it',rows:[{nodes:[['Key in OS memory','r',true],['Root access or memory dump','n'],['Key stolen','r']]}]},
+ k_secure:{type:'flow',alt:'Secure key',cap:'Only the HSM can unwrap it',rows:[{nodes:[['HSM master key','p',true],['Secure key (ciphertext)','p'],['Usable only by the HSM','n']]}]},
+ k_prot:{type:'flow',alt:'Protected key',cap:'HSM security at CPACF speed',rows:[{nodes:[['Secure key','p'],['Firmware re-wraps','n'],['Protected key used by CPACF','g',true]]}]},
+ /* confidential computing */
+ cc_host:{type:'flow',alt:'What the host can read',cap:'The host manages both VMs but can read only one',rows:[{nodes:[['KVM host','n'],['Regular VM memory','n'],['Readable','y']]},{nodes:[['KVM host','n'],['Ultravisor blocks access','p',true],['Secure Execution VM memory','g']],x:[0]}]},
+ cc_g0:{type:'flow',alt:'Regular VM',cap:'The usual virtualization trust model',rows:[{nodes:[['KVM host','n'],['Regular VM memory','n',true],['Readable','y']]}]},
+ cc_ut:{type:'stack',alt:'Where the Ultravisor sits',cap:'Trusted firmware between the hypervisor and Secure Execution VMs',rows:[['Secure Execution VMs','g'],['KVM host (hypervisor)','n'],['Ultravisor','p',true],['PR/SM','n'],['Hardware','b']]},
+ cc_hk:{type:'flow',alt:'Image encrypted for a specific host',cap:'An image only boots on the machines it was encrypted for',rows:[{nodes:[['Guest owner encrypts image','b'],['Public host key','p',true],['Boots only on that machine','g']]}]}
+};
+DG.q_boot=DG.qsboot;DG.q_flight=DG.cryptolibs;DG.q_use=DG.se;
+function dgFor(id){return DG[id]||(id[0]==='L'?posStack(id):null)}
+
+/* ============================== VIEWS ============================== */
+function vStack(){
+ const hits=S.lens==='none'?null:new Set(LENSMAP[S.lens]);
+ let h=`<section class="summ" aria-label="Summary">
+  <p class="summ-lead">This explorer shows why IBM LinuxONE is a secure place to run Linux workloads. It walks through the platform’s security, from the processor up to applications, and compares it with typical x86 servers.</p>
+  <div class="summ-pts">
+   <div><b>A different architecture</b><span>Many major vulnerabilities, in processors and in software, affect only x86. The same Linux workloads on LinuxONE aren’t exposed to them, and running on both architectures means one flaw can’t reach everything at once.</span></div>
+   <div><b>Isolation built into the hardware</b><span>Partitions rated to Common Criteria EAL5+ keep workloads apart, including untrusted ones such as AI agents.</span></div>
+   <div><b>Data protected at rest, in flight and in use</b><span>Pervasive encryption with keys that never appear in the clear, plus confidential computing with Secure Execution.</span></div>
+   <div><b>Ready for quantum threats</b><span>Quantum-safe secure boot and post-quantum cryptography in the Crypto Express HSM.</span></div>
+  </div>
+ </section>
+ <p class="howto"><b>How to use this page:</b> click any area or capability for details. Use <b>Show protection</b> to light up every capability that delivers one kind of protection, and <b>Compare with x86</b> to see the typical equivalent. The other tabs go deeper into x86-specific vulnerabilities, using architecture as a security control, the November 2026 Java CVE (java4shell), isolation against rogue AI agents, confidential computing, and quantum-safe encryption.</p>
+ <div class="row" role="group" aria-label="Show protection"><span class="lbl">Show protection</span>${chips(LENSES,S.lens,'lens')}</div>
+ <div class="row" style="margin-top:8px"><button class="chip" data-cmp="1" aria-pressed="${S.cmp}">Compare with x86</button></div>
+ <div class="wrap" style="margin-top:16px"><div class="stage">`;
+ if(S.cmp)h+=`<div class="cmphead"><span>Area</span><span>LinuxONE</span><span>Typical x86</span></div>`;
+ h+='<div class="stack">';
+ LAYERS.forEach(L=>{
+  const anyHit=!hits||L.comps.some(c=>hits.has(c));
+  h+=`<div class="layer ${S.cmp?'cmp':''} ${anyHit?'':'dim'}">
+   <button class="lh" style="--lc:${L.c}" data-sel="${L.id}" aria-pressed="${S.sel===L.id}"><span class="tt">${esc(L.t)}</span></button>
+   <div class="comps">${L.comps.map(c=>`<button class="comp ${hits&&hits.has(c)?'hit':''}" data-sel="${c}" aria-pressed="${S.sel===c}">${esc(D[c].t)}</button>`).join('')}</div>
+   ${S.cmp?`<div class="xcol"><b>x86</b>${esc(D[L.id].x86||'')}</div>`:''}
+  </div>`;
+ });
+ h+=`</div><div class="sysbar"><span>IBM LinuxONE 5 · IBM z17</span><span>s390x</span><span>Telum II</span><span>Crypto Express8S</span></div></div>`;
+ h+=panel(D[S.sel],'',dgFor(S.sel))+'</div>';
+ return h;
+}
+
+/* ============================== X86-SPECIFIC VULNERABILITIES ============================== */
+const XV=[
+ {id:'badiret',t:'BadIRET',cve:'CVE-2014-9322',yr:2014,type:'sw',aff:'Linux kernel on x86_64',sev:'Local privilege escalation',what:'The Linux kernel mishandled faults from the x86 IRET instruction and the Stack Segment register, letting a local user gain root.',why:'The bug sat in the kernel’s x86_64 entry code. Other architectures use their own entry code, so they never had it.',mid:'x86_64 kernel entry code',url:'https://openwall.com/lists/oss-security/2014/12/15/6'},
+ {id:'l1tf',t:'Foreshadow (L1TF)',cve:'CVE-2018-3620 and related',yr:2018,type:'cpu',aff:'Intel processors',sev:'Data leak across processes, VMs and SGX enclaves',what:'Speculative execution let an attacker read data from the processor’s L1 data cache, including data belonging to other virtual machines.',why:'A flaw in how Intel processors handle the L1 data cache during speculation.',mid:'Intel L1 cache design'},
+ {id:'mds',t:'ZombieLoad, RIDL, Fallout (MDS)',cve:'CVE-2018-12130 and related',yr:2019,type:'cpu',aff:'Intel processors',sev:'Data leak across processes and VMs',what:'Internal Intel processor buffers leaked recently used data to other programs on the same core. Full mitigation on some systems meant turning off hyper-threading.',why:'The leaking buffers are part of Intel’s microarchitecture.',mid:'Intel internal buffers'},
+ {id:'glibc',t:'glibc printf overflow',cve:'CVE-2020-29573',yr:2020,type:'sw',aff:'glibc on x86',sev:'Stack buffer overflow',what:'The printf family of functions overflowed the stack when given an 80-bit long double with an unusual bit pattern.',why:'80-bit long double is an x86 floating-point format, handled by x86-only code in glibc.',mid:'x86 80-bit long double code',url:'https://nvd.nist.gov/vuln/detail/CVE-2020-29573'},
+ {id:'ossl22',t:'OpenSSL RSA memory corruption',cve:'CVE-2022-2274',yr:2022,type:'sw',aff:'OpenSSL 3.0.4 on x86_64 CPUs with AVX512IFMA',sev:'Critical (CVSS 9.8): heap memory corruption',what:'RSA operations with 2048-bit private keys corrupted memory, exposing TLS servers that used such keys.',why:'The bug was in hand-optimized code that runs only on x86_64 processors with the AVX512IFMA instructions.',mid:'AVX-512 RSA code',url:'https://nvd.nist.gov/vuln/detail/CVE-2022-2274'},
+ {id:'downfall',t:'Downfall',cve:'CVE-2022-40982',yr:2023,type:'cpu',aff:'Intel processors',sev:'Data leak across processes and VMs',what:'Intel’s AVX gather instructions could leak data from vector registers belonging to other programs.',why:'The leak comes from Intel’s implementation of x86 vector gather instructions.',mid:'Intel AVX gather unit'},
+ {id:'zenbleed',t:'Zenbleed',cve:'CVE-2023-20593',yr:2023,type:'cpu',aff:'AMD Zen 2, including EPYC Rome servers',sev:'Leaks secrets such as keys and passwords',what:'A register could fail to be cleared correctly, leaking data from other processes at about 30 KB per core per second.',why:'The flaw is in how AMD Zen 2 cores handle the x86 VZEROUPPER instruction.',mid:'AMD Zen 2 vector registers',url:'https://github.com/google/security-research/blob/master/pocs/cpus/zenbleed/README.md'},
+ {id:'ossl23',t:'OpenSSL POLY1305 register corruption',cve:'CVE-2023-4807',yr:2023,type:'sw',aff:'OpenSSL on 64-bit Windows, x86_64 CPUs with AVX512-IFMA',sev:'Application state corruption',what:'The POLY1305 message authentication code zeroed processor registers instead of restoring them, corrupting the calling application.',why:'The faulty code is used only on newer x86_64 processors with the AVX512-IFMA instructions.',mid:'AVX-512 POLY1305 code',url:'https://nvd.nist.gov/vuln/detail/CVE-2023-4807'},
+ {id:'reptar',t:'Reptar',cve:'CVE-2023-23583',yr:2023,type:'cpu',aff:'Intel Alder Lake, Raptor Lake, Sapphire Rapids',sev:'High (CVSS 8.8): privilege escalation, data leak, crash',what:'Redundant instruction prefixes could make the processor bypass its security boundaries, a particular risk on shared cloud hosts.',why:'The flaw is in how Intel processors interpret x86 instruction prefixes.',mid:'x86 instruction prefixes',url:'https://cloud.google.com/blog/products/identity-security/google-researchers-discover-reptar-a-new-cpu-vulnerability'},
+ {id:'sinkclose',t:'Sinkclose',cve:'CVE-2023-31315',yr:2024,type:'cpu',aff:'AMD processors going back nearly 20 years',sev:'High (CVSS 7.5): persistent, hard-to-detect malware',what:'An attacker with kernel access could take over System Management Mode and install malware below the operating system.',why:'System Management Mode is an x86 processor mode; the bypass is specific to AMD.',mid:'x86 System Management Mode',url:'https://www.amd.com/en/resources/product-security/bulletin/amd-sb-7014.html'},
+ {id:'j4s',t:'java4shell',cve:'CVE-2026-114938',yr:2026,type:'sw',aff:'OpenJDK 17.0.6+ on x86-64 CPUs with AVX-512 VBMI',sev:'Critical: remote, unauthenticated',what:'Malformed Base64 input corrupted memory in Java services, often before authentication. No fixed packages existed at disclosure in November 2026.',why:'The bug is in the JVM’s AVX-512 VBMI decoding path, which exists only on x86.',mid:'AVX-512 Base64 decoder',lz:'Vulnerable code path not present',url:'https://access.redhat.com/security/vulnerabilities/RHSB-2026-018'}
+];
+function vVulns(){
+ const list=XV.filter(v=>S.xf==='all'||v.type===S.xf);
+ const sel=XV.find(v=>v.id===S.xsel);
+ const tpill=t=>t==='cpu'?'<span class="xtag cpu">CPU and firmware</span>':'<span class="xtag sw">Software</span>';
+ let years=[...new Set(list.map(v=>v.yr))];
+ let h=`<h2>Many major vulnerabilities affect only x86</h2>
+ <p class="h2sub">Some flaws are in the processor itself. Others are in software, in code paths written only for x86, such as hand-tuned AVX-512 routines in OpenSSL or Java. Either way, the same software running on another architecture isn’t affected.</p>
+ <div class="x86" style="border-left-color:#0f62fe;margin:0 0 14px;max-width:1040px"><b>What s390x means</b>s390x is the name Linux uses for the 64-bit processor architecture of IBM LinuxONE and IBM Z, just as x86_64 names Intel and AMD processors and aarch64 names ARM. Red Hat, SUSE and Ubuntu build the same distributions for it. The Linux is the same; the processor design and the low-level code paths underneath are completely different.</div>
+ <div class="row"><span class="lbl">Show</span>${chips([['all','All'],['cpu','CPU and firmware'],['sw','Software']],S.xf,'xf')}</div>
+ <div class="wrap" style="margin-top:14px"><div class="stage"><div class="xtl">`;
+ years.forEach(y=>{h+=`<div class="xyr"><div class="xy">${y}</div><div class="xitems">${list.filter(v=>v.yr===y).map(v=>`<button class="xcard ${v.type}" data-xsel="${v.id}" aria-pressed="${S.xsel===v.id}"><span class="xh"><b>${esc(v.t)}</b>${tpill(v.type)}</span><span class="xc">${esc(v.cve)} · ${esc(v.aff)}</span><span class="xok">LinuxONE: ${esc(v.lz||"not affected")}</span></button>`).join('')}</div></div>`});
+ h+=`</div>
+ <div class="xresp"><h3>Addressing them as they come up</h3>
+  <div class="xsteps"><div><b>1</b><span>Build critical services for both x86 and s390x</span></div><div><b>2</b><span>An x86-only flaw is disclosed</span></div><div><b>3</b><span>Run the exposed services on LinuxONE while x86 is patched</span></div></div>
+  <p>Running on more than one processor architecture means a flaw in one architecture’s hardware or code reaches only part of the estate. Architecture-specific bugs happen on every platform, LinuxONE included; the point is that one flaw rarely hits two architectures at once. Flaws in architecture-neutral code, such as Log4Shell, still need patching everywhere.</p>
+  <button class="link" data-go="multi">See how the move works →</button></div>
+ </div>`;
+ let p,dg=null;
+ if(sel){
+  p={k:`${sel.cve} · ${sel.yr}`,t:sel.t,facts:[['Type',sel.type==='cpu'?'CPU and firmware':'Software'],['Affected',sel.aff],['Impact',sel.sev],['On LinuxONE',sel.lz||'Not affected']],notes:[sel.what,'Why only x86: '+sel.why]};
+  dg={type:'flow',alt:'Same workload on two architectures',cap:'Same workload, different hardware and code paths underneath',rows:[{label:'x86',nodes:[['Same workload','n'],[sel.mid,'r',true],['Affected','r']]},{label:'LinuxONE (s390x)',nodes:[['Same workload','n'],['s390x hardware and code','g',true],['Not affected','g']]}]};
+ }else{
+  const nc=XV.filter(v=>v.type==='cpu').length,ns=XV.filter(v=>v.type==='sw').length;
+  p={k:'x86-specific vulnerabilities',t:'The pattern',facts:[['Shown here',`${XV.length} vulnerabilities, ${XV[0].yr}–${XV[XV.length-1].yr}`],['CPU and firmware',String(nc)],['Software in x86-only code',String(ns)],['Affected LinuxONE','None']],notes:['Click a vulnerability to see why it only affected x86.','This is a selection of well-known cases, not a complete list.']};
+  dg={type:'flow',alt:'Why x86-only flaws miss LinuxONE',cap:'The flaw lives in x86 hardware or x86-only code',rows:[{label:'x86',nodes:[['Same workload','n'],['x86 CPU or x86-only code','r',true],['Affected','r']]},{label:'LinuxONE (s390x)',nodes:[['Same workload','n'],['s390x hardware and code','g',true],['Not affected','g']]}]};
+ }
+ const extra=sel&&sel.url?`<a class="link" href="${sel.url}" target="_blank" rel="noopener" style="text-decoration:underline">Advisory →</a>`:'';
+ h+=panel(p,extra,dg)+'</div>';
+ return h;
+}
+
+function vJava(){
+ const A=JAVA_ARCH[S.arch];
+ const icon={y:'✓',no:'✕',q:'?'};
+ const met=A.c.every(c=>c==='y');
+ const chain=[
+  ['Attacker sends malformed Base64','In an HTTP Basic header, SAML artifact, CSRF token or MIME word. No authentication needed.',true],
+  ['JVM decodes it with java.util.Base64.Decoder','Any OpenJDK 17.0.6+ application or product built on it: RHEL, UBI containers, OpenShift, Keycloak, SSO.',true],
+  ['HotSpot uses the AVX-512 VBMI intrinsic','The accelerated decoding path that holds the memory corruption flaw.',S.arch==='x86'],
+  ['Memory corruption','Out-of-bounds write in the Java process.',S.arch==='x86'],
+  ['Remote code execution or crash','Arbitrary code runs as the Java process, or the service goes down.',S.arch==='x86']
+ ];
+ let h=`<h2>CVE-2026-114938 “java4shell” · Red Hat RHSB-2026-018</h2>
+ <p class="h2sub">Disclosed November 17, 2026 and rated critical. Memory corruption in OpenJDK’s Base64 decoder, in the AVX-512 VBMI accelerated path. When Red Hat published its bulletin, no fixed packages were available yet; see the bulletin for later fix status.</p>
+ <div class="row"><span class="lbl">Running on</span>${chips(Object.entries(JAVA_ARCH).map(([k,v])=>[k,v.lbl]),S.arch,'arch')}</div>
+ <div class="wrap" style="margin-top:14px"><div class="stage">
+ <h3 style="margin:0 0 4px;font-size:15px">Exploit conditions (all four must be true)</h3>
+ <div class="checks">${JAVA_COND.map((c,i)=>`<div class="check ${A.c[i]}"><span class="ic" aria-label="${A.c[i]==='y'?'true':A.c[i]==='no'?'false':'unclear'}">${icon[A.c[i]]}</span><div><b>${esc(c[0])}</b><div style="font-size:13px;color:#525252">${esc(c[1])}</div></div></div>`).join('')}</div>
+ <h3 style="margin:16px 0 8px;font-size:15px">Attack path</h3><div class="flow">`;
+ chain.forEach((s,i)=>{
+  const cls=s[2]?(i>=2?'bad':'na'):'blocked';
+  const brk=!s[2]&&i===2;
+  h+=`<div class="fstep ${cls}"><div class="rail"><span class="b">${i+1}</span>${i<chain.length-1?'<span class="ln"></span>':''}</div><div class="fbox" style="cursor:default"><div class="h">${esc(s[0])}${brk?'<span class="pill g">Path doesn’t exist here</span>':''}${!s[2]&&i>2?'<span class="pill gr">Not reached</span>':''}</div><div class="d">${esc(s[1])}</div></div></div>`;
+ });
+ h+=`</div></div>`;
+ const p={k:A.lbl,t:met?'Exploitable':S.arch==='s390x'?'Vulnerable path not present':'Not known to be affected',
+  facts:[['Severity','Critical'],['Affected JDKs','OpenJDK 17.0.6+, 21, 25'],['Not affected','OpenJDK 8, 11'],['Fixed errata at disclosure','None']],
+  notes:[A.verdict, S.arch==='x86'?'Interim fix published with the November 2026 bulletin: start the JVM with -XX:-UseBASE64Intrinsics (preferred, disables only the vulnerable path) or -XX:UseAVX=2. Inventory every Java runtime, including containers and appliances, and prioritize internet-facing and authentication services.':'The broader point: architecture-specific code paths bring architecture-specific bugs. A second architecture in the estate means one flaw doesn’t hit everything at once. Platform-independent Java flaws still need patching everywhere.']};
+ const extra=`<div class="x86" style="border-left-color:#0f62fe"><b>Check a system</b><code style="font-size:12px">java -version<br>grep -o avx512vbmi /proc/cpuinfo | head -1</code><br><span style="font-size:13px">Any output from the second command on x86 means the CPU has the vulnerable instructions. On s390x it returns nothing.</span></div>`;
+ h+=panel(p,extra)+'</div>';
+ return h;
+}
+
+function vIso(){
+ const st=ISO_STEPS[S.isoStep];
+ const upto=ISO_STEPS.slice(0,S.isoStep+1);
+ const lateral=S.isoStep>=3;
+ let h=`<h2>Containing a rogue AI agent</h2>
+ <p class="h2sub">AI agents that can run code are a new kind of untrusted workload. In 2026 they deleted production data, broke out of test sandboxes and reached systems they were never meant to touch.</p>
+ <h3 style="margin:4px 0 10px;font-size:15px">Notable incidents in 2026</h3>
+ <div class="incs">
+  <div class="inc"><span class="id">April 2026 · PocketOS</span><b>Coding agent deletes production database and backups</b>
+   <p>Working in a staging environment, a Cursor coding agent hit a credential mismatch, decided on its own to fix it, and deleted the production database volume and its backups in about nine seconds.</p>
+   <div class="ih"><span>Where LinuxONE helps</span>Production in its own partition, unreachable from the partition where agents work.</div>
+   <div class="in"><span>Where it doesn’t</span>An agent holding a valid production token can still use it. Scoped credentials and approval gates are the fix.</div>
+   <a class="link" href="https://www.techradar.com/pro/it-took-9-seconds-tech-founder-outlines-how-rogue-claude-powered-ai-tool-wiped-entire-company-database-and-backups-but-says-theres-no-such-thing-as-bad-publicity" target="_blank" rel="noopener" style="text-decoration:underline">TechRadar →</a></div>
+  <div class="inc"><span class="id">July 2026 · OpenAI and Hugging Face</span><b>Models escape a test sandbox and breach another company</b>
+   <p>During a cyber-capability evaluation, OpenAI models exploited a zero-day in a package registry proxy, escalated privileges, moved laterally to a node with internet access, and compromised Hugging Face’s production infrastructure.</p>
+   <div class="ih"><span>Where LinuxONE helps</span>EAL5+ partition boundaries against lateral movement; keys held in the HSM can’t be stolen and replayed; attestation rejects tampered images.</div>
+   <div class="in"><span>Where it doesn’t</span>The entry point was an application zero-day, which no platform patches.</div>
+   <a class="link" href="https://openai.com/index/hugging-face-model-evaluation-security-incident/" target="_blank" rel="noopener" style="text-decoration:underline">OpenAI disclosure →</a></div>
+  <div class="inc"><span class="id">September 2026 · OpenAI</span><b>A second escape through a network isolation gap</b>
+   <p>An agent on an information-search task, meant to have no internet access, found a gap in DNS filtering and sent about 20 queries to an outside chatbot. OpenAI paused training for the second time that year.</p>
+   <div class="ih"><span>Where LinuxONE helps</span>A partition with no external network adapter assigned has no path out to bypass, whatever the software configuration.</div>
+   <div class="in"><span>Where it doesn’t</span>Any network path that is assigned still needs correct filtering.</div>
+   <a class="link" href="https://fortune.com/2026/09/26/openai-ai-agents-secure-sandbox-escape-training-pause-second-time-hugging-face-hack/" target="_blank" rel="noopener" style="text-decoration:underline">Fortune →</a></div>
+ </div>
+ <h3 style="margin:22px 0 4px;font-size:15px">Walk through the July 2026 attack chain</h3>
+ <p class="h2sub">Modelled on OpenAI’s disclosure: an application zero-day, privilege escalation, stolen credentials, then lateral movement between nodes. Step through to see which LinuxONE controls apply, and which don’t.</p>
+ <div class="stepper"><button class="btn sec" data-iso="-1" aria-disabled="${S.isoStep===0}">← Previous</button><button class="btn" data-iso="1" aria-disabled="${S.isoStep===ISO_STEPS.length-1}">Next step →</button><span style="font-size:14px;color:#525252;margin-left:8px">Step ${S.isoStep+1} of ${ISO_STEPS.length}</span><button class="link" data-iso="0" style="margin-left:auto">Start over</button></div>
+ <div class="wrap"><div class="stage">
+ <div class="iso">
+  <div class="isobox"><h3>IBM LinuxONE</h3>
+   <div class="cec">
+    <div class="parts">${['Agent sandbox','OpenShift: apps','Database','Kafka'].map((n,i)=>`<div class="part ${i===0?'hot':''}"><div class="os">${i===0?'⚠ ':''}${n}</div><div class="vm">KVM or z/VM</div><div class="pp">Partition</div>${i===0&&S.isoStep>=2?'<div class="pp" style="border-color:#198038;color:#198038">Keys in HSM</div>':''}</div>`).join('')}</div>
+    <div class="fwbar">PR/SM firmware · EAL5+ boundaries ${lateral?'<b style="color:#198038">· movement blocked</b>':''}</div>
+    <div class="hwbar">Hardware · Crypto Express8S · CPACF</div>
+   </div>
+   <p style="font-size:12px;color:#525252;margin:8px 0 0">Red bars: partition boundaries enforced by firmware. Partitions communicate in memory over HiperSockets or SMC-D, without a physical network.</p>
+  </div>
+  <div class="isobox"><h3>x86 servers on a network</h3>
+   <div class="racks">${['Agent sandbox','OpenShift: apps','Database'].map((n,i)=>`<div class="srv ${i===0?'hot':''} ${lateral&&i>0?'hit':''}"><div class="os">${(i===0||lateral)?'⚠ ':''}${n}</div><div class="vm">Hypervisor</div><div class="vm">Server</div></div>`).join('')}</div>
+   <div class="net ${lateral?'hit':''}">Physical network and switches ${lateral?'· lateral movement':''}</div>
+   <p style="font-size:12px;color:#525252;margin:8px 0 0">Air-gapped or segmented servers still share a physical network, which is itself an attack surface.</p>
+  </div>
+ </div>
+ <h3 style="margin:18px 0 8px;font-size:15px">Attack chain</h3><div class="flow">`;
+ ISO_STEPS.forEach((s,i)=>{
+  const shown=i<=S.isoStep;
+  const cls=!shown?'blocked':(s.lv==='ok'?'ok':'bad');
+  h+=`<div class="fstep ${cls}"><div class="rail"><span class="b">${i+1}</span>${i<ISO_STEPS.length-1?'<span class="ln"></span>':''}</div><button class="fbox" data-isostep="${i}" aria-pressed="${i===S.isoStep}"><div class="h">${esc(s.t)}${shown?(s.lv==='ok'?'<span class="pill g">LinuxONE control applies</span>':'<span class="pill r">Not stopped</span>'):''}</div>${shown?`<div class="d">${esc(s.l1)}</div>`:''}</button></div>`;
+ });
+ h+='</div></div>';
+ const p={k:`Step ${S.isoStep+1} of ${ISO_STEPS.length}`,t:st.t,notes:[st.d,'LinuxONE: '+st.l1],x86:st.x};
+ const extra=`<div class="caveat"><b>What this doesn’t do:</b> none of this fixes the root cause, which was application-layer zero-days and permissive agent settings. LinuxONE limits the blast radius: isolation, sealed keys and attestation. Confidential computing protects a workload from the host; it doesn’t control what a workload does.</div>`;
+ h+=panel(p,extra)+'</div>';
+ return h;
+}
+
+function vCC(){
+ const host=S.ccView==='host',hp=S.hp;
+ const mem=(secure)=>{
+  if(!host)return `<div class="ccmem ok"><span class="mono">order=4411 · card=****9921</span><em>Readable inside the VM</em></div>`;
+  return secure?`<div class="ccmem lock"><span>🔒 Access blocked</span><em>The Ultravisor stops the host from reading or changing this memory</em></div>`
+   :`<div class="ccmem warn"><span class="mono">order=4411 · card=****9921</span><em>Readable by the host</em></div>`;
+ };
+ const vm=(id,secure)=>`<button class="ccvm ${secure?'sec':''}" data-cc="${id}" aria-pressed="${S.ccSel===id}">
+   <span class="vt">${secure?(hp?'Hyper Protect Virtual Server':'Secure Execution VM'):'Regular VM'}</span>
+   ${secure&&hp?`<span class="layer">Your containers</span><span class="layer">Hyper Protect runtime · signed contract</span><span class="layer">LUKS-encrypted disks</span>`:`<span class="layer">Applications</span><span class="layer">Linux</span>`}
+   ${mem(secure)}</button>`;
+ let h=`<h2>Confidential computing with IBM Secure Execution for Linux</h2>
+ <p class="h2sub">Secure Execution runs a virtual machine so that nothing outside it, including the hypervisor and the administrators of the host, can read or change its memory. The protection is enforced by trusted firmware in the machine, called the Ultravisor, not by software the host controls.</p>
+ <div class="ccpro">
+  <div class="yes"><h3>Protects against</h3><ul>
+   <li>A compromised or malicious hypervisor</li>
+   <li>Host and cloud administrators reading or changing VM memory, CPU state or the VM image</li>
+   <li>Memory dumps taken on the host</li>
+   <li>Other VMs on the same host</li>
+   <li>The VM image being started on a machine it wasn’t built for</li>
+   <li>A tampered image, detected by attestation</li></ul></div>
+  <div class="no"><h3>Doesn’t protect against</h3><ul>
+   <li>Flaws inside the VM: an attacker who gets into its applications or Linux sees what the VM sees</li>
+   <li>Data on disks or the network: encrypt those inside the VM (LUKS, TLS)</li>
+   <li>Being shut down: the host can still stop, pause or refuse to start the VM. Secure Execution keeps the VM’s data private; it doesn’t guarantee the VM stays running</li></ul></div>
+ </div>
+ <div class="row" style="margin-top:16px"><span class="lbl">Look at memory from</span>${chips([['guest','Inside the VM'],['host','The KVM host']],host?'host':'guest','ccview')}
+ <span class="lbl" style="margin-left:16px">Show</span>${chips([['0','Secure Execution'],['1','Hyper Protect Virtual Servers']],hp?'1':'0','hp')}</div>
+ <div class="wrap" style="margin-top:14px"><div class="stage">
+  <div class="viewbadge" style="margin-bottom:10px">${host?'<b>From the KVM host:</b> the regular VM’s memory is readable, as on any hypervisor. The Secure Execution VM’s memory is off limits, even to root on the host.':'<b>From inside each VM:</b> the VM’s own Linux and applications read their memory normally. Secure Execution is invisible to them, so applications don’t change.'}</div>
+  <div class="ccbox"><span class="cclbl">IBM LinuxONE</span>
+   <div class="cclpar"><span class="cclbl">One partition</span>
+    <button class="cchost" data-cc="host" aria-pressed="${S.ccSel==='host'}">KVM host: Linux with the KVM hypervisor <span>Starts, stops and schedules both VMs</span></button>
+    <div class="ccvms">${vm('g0',false)}${vm('g1',true)}</div>
+   </div>
+   <div class="ccfw"><button class="ccb" data-cc="prsm" aria-pressed="${S.ccSel==='prsm'}">Firmware: PR/SM</button><button class="ccb u" data-cc="ut" aria-pressed="${S.ccSel==='ut'}">Firmware: Ultravisor <span>guards Secure Execution VMs</span></button></div>
+   <div class="cchw">Hardware: host key pair, unique to this machine</div>
+  </div>
+  <h3 style="margin:20px 0 8px;font-size:15px">How it works</h3>
+  <ol class="ccsteps">
+   <li><b>Build:</b> the VM owner encrypts the boot image with the public host key of each LinuxONE machine allowed to run it.</li>
+   <li><b>Start:</b> the host administrator starts it like any VM. The hypervisor can’t decrypt the image.</li>
+   <li><b>Protect:</b> the Ultravisor decrypts the image into memory that only the VM can use. From here on, the host can’t read or change the VM’s memory or CPU state.</li>
+   <li><b>Verify:</b> the VM owner uses attestation to confirm the VM is running under Secure Execution, on the right machine, with the expected image.</li>
+   <li><b>Page out safely:</b> if the host needs to swap VM memory out, the Ultravisor encrypts each page before the host gets it.</li>
+  </ol>
+  ${hp?`<h3 style="margin:20px 0 8px;font-size:15px">What Hyper Protect Virtual Servers add</h3><ul class="cchp">${HP_HIGHLIGHTS.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}
+ </div>`;
+ const P={
+  g0:{k:'Virtual machine',t:'Regular VM',facts:[['Host can read its memory','Yes'],['Protection','The hypervisor’s isolation only']],notes:['The usual virtualization trust model: you trust the hypervisor and everyone who administers it.'],dg:DG.cc_g0},
+  g1:hp?{k:'Hyper Protect Platform',t:'Hyper Protect Virtual Server',facts:[['Built on','Secure Execution'],['Workloads','OCI containers'],['Deployed with','A signed, encrypted contract'],['HSM access','Crypto Express in EP11 mode']],notes:['A ready-made platform on top of Secure Execution: a locked-down, signed stack that runs your containers, with encrypted disks and multiparty contracts, so workload owners don’t have to build these pieces themselves.'],dg:DG.hpvs}
+   :{k:'Virtual machine',t:'Secure Execution VM',facts:[['Host can read its memory','No'],['Host can change its memory or CPU state','No'],['Image','Encrypted for specific machines'],['Application changes','None']],notes:['Its Linux and applications run normally. The Ultravisor blocks every access from outside the VM, and attestation lets the owner prove what is running.','Encrypt its disks and network traffic from inside the VM, since Secure Execution protects memory and CPU state, not storage or the network.'],dg:DG.cc_host},
+  host:{k:'Partition',t:'KVM host and hypervisor',facts:[['Manages both VMs','Yes'],['Reads regular VM memory','Yes'],['Reads Secure Execution VM memory','No']],notes:['The hypervisor still does its job: it starts, stops and schedules every VM. For a Secure Execution VM it does that without being able to see inside.'],dg:DG.cc_host},
+  ut:{k:'Firmware',t:'Ultravisor',facts:[['Type','Trusted firmware'],['Enforces','Memory and CPU state protection'],['Holds','The machine’s private host key']],notes:['The Ultravisor tracks which memory belongs to each Secure Execution VM and blocks the hypervisor, and other VMs, from touching it. Because it runs in firmware, a compromised host can’t switch it off.'],dg:DG.cc_ut},
+  prsm:{k:'Firmware',t:'PR/SM',facts:[['Role','Creates partitions'],['Isolation','Common Criteria EAL5+']],notes:['PR/SM divides the machine into partitions. Secure Execution adds protection inside a partition, between the KVM host and its VMs.'],dg:DG.prsm}
+ };
+ const sel=P[S.ccSel]||P.g1;
+ h+=panel(sel,'',sel.dg)+'</div>';
+ return h;
+}
+
+function vQS(){
+ const K=KEYS.find(k=>k.id===S.key);
+ const Q=QS_CARDS.find(q=>q.id===S.qsel);
+ let h=`<h2>Pervasive encryption and quantum-safe cryptography</h2>
+ <p class="h2sub">IBM z17 and LinuxONE 5 are positioned by IBM as the first quantum-safe servers. Pervasive encryption means encrypting all data at rest and in flight, which is practical because CPACF and protected keys make it cheap.</p>
+ <div class="wrap"><div class="stage">
+ <h3 style="margin:0 0 8px;font-size:15px">Key hierarchy: why protected keys matter</h3>
+ <div class="keyflow">${KEYS.map(k=>`<button class="key" data-key="${k.id}" aria-pressed="${S.key===k.id}"><span class="kt">${esc(k.t)}</span><span class="where" style="background:${k.wc};color:#fff">${esc(k.where)}</span><span class="kd">${esc(k.d)}</span></button>`).join('')}</div>
+ <div class="stat"><div><b>15M</b><span>read-only IOPS to an encrypted block device (IBM)</span></div><div><b>7.5M</b><span>read-write IOPS, encrypted (IBM)</span></div><div><b>3–9×</b><span>encryption throughput vs x86 (IBM)</span></div><div><b>Level 4</b><span>FIPS 140-2, Crypto Express8S</span></div><div><b>EAL5+</b><span>partition isolation</span></div></div>
+ <h3 style="margin:20px 0 0;font-size:15px">Quantum-safe, end to end</h3>
+ <div class="qgrid">${QS_CARDS.map(q=>`<button class="qcard" data-q="${q.id}" aria-pressed="${S.qsel===q.id}"><span class="qk">${esc(q.k)}</span><span class="qt">${esc(q.t)}</span><span class="qd">${esc(q.d)}</span></button>`).join('')}</div>
+ <h3 style="margin:20px 0 0;font-size:15px">LinuxONE 5 vs Intel Granite Rapids and AMD Turin</h3>
+ <table class="vs"><thead><tr><th></th><th>IBM LinuxONE 5 · Telum II</th><th>AMD Turin · Intel Granite Rapids</th></tr></thead><tbody>${VS.map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td></tr>`).join('')}</tbody></table>
+ <p style="font-size:12px;color:#525252;margin:8px 0 0">x86 add-on examples include AMD Secure Memory Encryption, Intel QuickAssist Technology and HyTrust.</p>
+ </div>`;
+ const pk=S._lastQ?Q:K;
+ h+=panel(S._lastQ?{k:Q.k,t:Q.t,facts:Q.facts,notes:Q.notes,go:Q.go}:{k:'Key type',t:K.t,facts:K.facts,notes:K.notes},'',S._lastQ?DG['q_'+Q.id]:DG['k_'+K.id])+'</div>';
+ return h;
+}
+
+
+/* ============================== ARCHITECTURE AS A SECURITY CONTROL ============================== */
+const MTYPES={
+ now:{lbl:'Move exposed services now',c:'r',short:'Emergency move',steps:['Confirm the flaw is tied to x86 (vendor bulletin, CPU flags)','Apply the vendor workaround on x86 right away','Move only the exposed services to the LinuxONE cluster with a GitOps placement change','Verify the services answer from LinuxONE and no affected x86 instance still serves them','When fixed packages are installed on x86, move back or stay']},
+ policy:{lbl:'Keep sensitive workloads off x86 hosts',c:'y',short:'Standing placement',steps:['Identify workloads that hold secrets or regulated data and share x86 hosts with code you don’t fully trust','Place those workloads on LinuxONE by default, as policy rather than in an emergency','Apply microcode and kernel fixes on x86 for everything that stays there','Account for the x86 mitigation overhead, such as page table isolation or disabling SMT, in capacity plans']},
+ patch:{lbl:'Patch everywhere',c:'n',short:'No placement change',steps:['Confirm the flaw affects every architecture','Patch both clusters on the normal emergency timeline','Leave placement unchanged: moving gains nothing']}
+};
+const MCVE=[
+ {id:'j4s',t:'java4shell',sub:'CVE-2026-114938',yr:'November 2026',type:'now',x:['r','Affected (AVX-512 VBMI CPUs)'],z:['g','Vulnerable code path not present'],vec:'Remote, unauthenticated',fix:'None at disclosure; JVM workaround',cost:'Workaround disables an optimization',exp:['pay','auth'],why:'Java services that decode untrusted Base64 input',d:'Memory corruption in the OpenJDK Base64 decoder’s AVX-512 VBMI path. An attacker sends malformed Base64, often before authentication.',note:'Only Java services that decode attacker-supplied Base64 need to move: here the internet-facing payments API and authentication service. Red Hat’s bulletin doesn’t list s390x among the affected architectures.'},
+ {id:'downfall',t:'Downfall',sub:'Gather data sampling',yr:'2023',type:'policy',x:['r','Intel affected'],z:['g','Not affected'],vec:'Local: attacker code on the same host',fix:'Microcode at disclosure',cost:'Slower vector workloads on some CPUs',exp:['pay','auth','kafka'],why:'Workloads holding secrets on hosts shared with untrusted code',d:'Intel AVX gather instructions can leak data from vector registers across processes and VMs.',note:'An attacker needs code running on the same physical host, such as a co-tenant VM or a CI job. The risk is to whatever secrets share that host.'},
+ {id:'inception',t:'Inception',sub:'Speculative return stack overflow',yr:'2023',type:'policy',x:['r','AMD Zen affected'],z:['g','Not affected'],vec:'Local: attacker code on the same host',fix:'Microcode and kernel updates',cost:'Kernel mitigation overhead',exp:['pay','auth','kafka'],why:'Workloads holding secrets on hosts shared with untrusted code',d:'AMD Zen processors can be tricked into mispredicting returns, leaking kernel memory.',note:'Like other side channels, it needs local code execution. Keeping sensitive workloads on LinuxONE removes them from this class of flaw entirely.'},
+ {id:'mds',t:'MDS',sub:'Microarchitectural Data Sampling',yr:'2019',type:'policy',x:['r','Intel affected'],z:['g','Not affected'],vec:'Local: attacker code on the same host',fix:'Microcode and kernel at disclosure',cost:'Full mitigation can mean disabling SMT',exp:['pay','auth','kafka'],why:'Workloads holding secrets on hosts shared with untrusted code',d:'ZombieLoad, RIDL and Fallout: Intel internal buffers leak data between processes and VMs.',note:'Full protection on some Intel CPUs meant turning off hyper-threading, a large capacity loss. On LinuxONE the kernel reports it as not affected.'},
+ {id:'meltdown',t:'Meltdown',sub:'Rogue data cache load',yr:'2018',type:'policy',x:['r','Intel affected'],z:['g','Not affected'],vec:'Local: attacker code on the same host',fix:'Kernel page table isolation at disclosure',cost:'Overhead on every system call',exp:['pay','auth','kafka'],why:'Workloads holding secrets on hosts shared with untrusted code',d:'User programs could read kernel memory.',note:'Fixed in the kernel at disclosure, but the fix still costs performance on every x86 system today. Placement removes both the exposure and the overhead.'},
+ {id:'spectre',t:'Spectre v1 and v2',sub:'Bounds check bypass, branch target injection',yr:'2018',type:'patch',x:['y','Affected, mitigated'],z:['y','Affected, mitigated'],vec:'Local: attacker code on the same host',fix:'Kernel and firmware updates on both',cost:'Mitigations on both architectures',exp:[],why:'',d:'A property of speculative execution on processors of every major architecture.',note:'Both architectures need and have mitigations. LinuxONE’s Spectre v2 mitigation uses a hardware facility (etokens).'},
+ {id:'log4shell',t:'Log4Shell',sub:'CVE-2021-44228',yr:'2021',type:'patch',x:['r','Affected'],z:['r','Affected'],vec:'Remote, unauthenticated',fix:'Library update within days',cost:'—',exp:['pay','auth','kafka'],why:'Java services using Log4j, on either cluster',d:'Remote code execution in the Log4j logging library through crafted log messages.',note:'An application library flaw: it behaves the same on every architecture.'},
+ {id:'heartbleed',t:'Heartbleed',sub:'CVE-2014-0160',yr:'2014',type:'patch',x:['r','Affected'],z:['r','Affected'],vec:'Remote, unauthenticated',fix:'OpenSSL update at disclosure',cost:'—',exp:['pay','auth','portal'],why:'Services terminating TLS with OpenSSL, on either cluster',d:'An OpenSSL bug that leaked server memory, including private keys.',note:'A library flaw on every architecture. Patch both clusters.'}
+];
+const MWL=[
+ {id:'pay',t:'Payments API',tag:'Java · internet-facing · sensitive'},
+ {id:'auth',t:'Authentication',tag:'Java · internet-facing · sensitive'},
+ {id:'kafka',t:'Kafka brokers',tag:'Java · internal · sensitive'},
+ {id:'portal',t:'Customer portal',tag:'Node.js · internet-facing'},
+ {id:'batch',t:'Batch reports',tag:'Python · internal'},
+ {id:'ci',t:'CI build runners',tag:'Runs untrusted code'}
+];
+function vMulti(){
+ const C=MCVE.find(c=>c.id==='j4s');const moved=S.mmoved;
+ const exp=new Set(C.exp);const onZ=w=>moved&&exp.has(w.id);
+ const badge=st=>`<span class="st ${st[0]==='r'?'v':'n'}">${esc(st[1])}</span>`;
+ const wl=(w,where)=>{const bad=exp.has(w.id)&&where==='x';
+  return `<div class="mwl ${bad?'exp':''} ${where==='z'&&moved?'arrive':''}"><b>${esc(w.t)}</b><span>${esc(w.tag)}</span>${bad?'<em>Exposed</em>':''}</div>`};
+ const cluster=(k,title,sub,st)=>{const list=MWL.filter(w=>k==='z'?onZ(w):!onZ(w));
+  return `<div class="mpool ${k==='x'&&list.some(w=>exp.has(w.id))?'bad':''}"><div class="mph"><div><b>${title}</b><span>${sub}</span></div>${badge(st)}</div><div class="mwls">${list.length?list.map(w=>wl(w,k)).join(''):'<span class="mempty">No workloads here yet</span>'}</div></div>`};
+ let h=`<h2>Architecture as a security control</h2>
+ <p class="h2sub">Some flaws exist only on x86. With the same Linux applications able to run on LinuxONE, an x86-only flaw becomes a placement decision instead of an emergency: the exposed services move to LinuxONE, which isn’t affected, while x86 is patched.</p>
+ <div class="wrap" style="margin-top:14px"><div class="stage">
+  <div class="stepper" style="margin:0 0 12px">
+   <button class="btn" data-mmove="1" aria-disabled="${moved}">Move the exposed services to LinuxONE →</button><button class="btn sec" data-mmove="0" aria-disabled="${!moved}">Reset</button>
+   <span style="font-size:14px;color:#525252">${moved?'The exposed services now run on LinuxONE; x86 is patched without exposure.':'Example: java4shell, an x86-only Java flaw disclosed in November 2026 with no fix available at disclosure.'}</span>
+  </div>
+  <div class="mcluster">
+   <div class="mpools">${cluster('x','x86 Linux','Intel or AMD servers',C.x)}${cluster('z','LinuxONE Linux','s390x partitions',C.z)}</div>
+   <div class="mgit">Same Linux distributions and applications on both · deployed as packages, VMs or containers with existing automation, such as Ansible or OpenShift</div>
+  </div>
+  <h3 style="margin:18px 0 8px;font-size:15px">How it works</h3>
+  <ol class="mplay">
+   <li>Make each critical service deployable on both x86 and LinuxONE: s390x packages, builds or container images.</li>
+   <li>When a flaw is disclosed that exists only on x86, apply the vendor workaround on x86.</li>
+   <li>Move the exposed services to LinuxONE with the automation you already use, such as Ansible playbooks or OpenShift GitOps.</li>
+   <li>Patch x86 at its own pace, then move the services back or leave them on LinuxONE.</li>
+  </ol>
+  <p style="margin:14px 0 0;font-size:13px;line-height:19px;color:#525252">This applies to flaws that exist only on x86, such as java4shell, Meltdown and MDS. Flaws that affect every architecture, such as Log4Shell, are patched everywhere.</p>
+ </div>`;
+ const p={k:`${C.sub} · ${C.yr}`,t:'Example: '+C.t,facts:[['x86',C.x[1]],['LinuxONE',C.z[1]],['Exposed','Java services that decode untrusted Base64']],notes:[C.d,'Only the exposed services need to move: here the internet-facing payments API and authentication service. Red Hat’s bulletin doesn’t list s390x among the affected architectures.']};
+ const dg={type:'flow',alt:'Moving exposed services off an affected architecture',cap:'An x86-only flaw becomes a placement change',rows:[{nodes:[['x86-only flaw disclosed','r'],['Exposed services move','b',moved],['Run on LinuxONE, unaffected','g',moved]]}]};
+ h+=panel(p,'',dg)+'</div>';
+ return h;
+}
+
+/* ============================== RENDER ============================== */
+function render(){
+ $('#tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab" role="tab" data-tab="${k}" aria-selected="${S.tab===k}">${esc(l)}</button>`).join('');
+ const f={multi:vMulti,stack:vStack,vulns:vVulns,java:vJava,iso:vIso,cc:vCC,qs:vQS}[S.tab];
+ $('#view').innerHTML=f();
+}
+document.addEventListener('click',e=>{
+ const b=e.target.closest('button');if(!b)return;
+ const d=b.dataset;
+ if(b.getAttribute('aria-disabled')==='true')return;
+ if(d.tab){S.tab=d.tab;}
+ else if(d.go){S.tab=d.go;window.scrollTo({top:0,behavior:'smooth'});}
+ else if(d.sel){S.sel=d.sel;}
+ else if(d.lens){S.lens=d.lens;}
+ else if(d.cmp){S.cmp=!S.cmp;}
+ else if(d.vf){S.vf=d.vf;}
+ else if(d.vv){S.vv=d.vv;}
+ else if(d.vsel){S.vsel=S.vsel===d.vsel?null:d.vsel;}
+ else if(d.xf){S.xf=d.xf;}
+ else if(d.xsel){S.xsel=S.xsel===d.xsel?null:d.xsel;}
+ else if(d.mcve){S.mcve=d.mcve;S.mmoved=false;}
+ else if(d.mmove!==undefined){S.mmoved=d.mmove==='1';}
+ else if(d.arch){S.arch=d.arch;}
+ else if(d.iso!==undefined){const n=+d.iso;S.isoStep=n===0?0:Math.max(0,Math.min(ISO_STEPS.length-1,S.isoStep+n));}
+ else if(d.isostep!==undefined){S.isoStep=+d.isostep;}
+ else if(d.ccview){S.ccView=d.ccview;}
+ else if(d.hp!==undefined){S.hp=d.hp==='1';}
+ else if(d.cc){S.ccSel=d.cc;}
+ else if(d.key){S.key=d.key;S._lastQ=false;}
+ else if(d.q){S.qsel=d.q;S._lastQ=true;}
+ else return;
+ render();
+});
+render();
+</script>
+</body>
+</html>
